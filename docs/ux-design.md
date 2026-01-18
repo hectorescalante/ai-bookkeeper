@@ -56,6 +56,7 @@ Three tabs showing document processing status.
 **Pending Tab:**
 - Checkbox for multi-select
 - Filename, sender, date received
+- Email indicator: Documents from the same email show a link icon 🔗 with tooltip "From same email as [filename]"
 - [📄 View PDF] button to preview before processing
 - "Process Selected" button
 - "Fetch Emails" button to check for new
@@ -211,6 +212,13 @@ Full breakdown of a single booking.
 - Every invoice row has direct link to source PDF
 - Status dropdown (Pending/Complete)
 - Edit, Export, Complete actions
+
+**Multi-Booking Invoice Display:**
+When an invoice spans multiple bookings, the booking detail shows:
+- Only charges attributed to THIS booking (not the full invoice)
+- "Amount" column shows the sum of charges for this booking
+- Tooltip on amount: "This booking: €600 of €1,000 invoice total"
+- [📄 View PDF] opens the full original invoice
 
 ---
 

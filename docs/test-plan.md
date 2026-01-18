@@ -76,8 +76,9 @@ Pure business logic, no external dependencies. Fast execution.
 - Store profile info
 
 **Settings (Singleton)**
-- Store API key (encrypted reference)
+- Store API key
 - Store export path
+- Store extraction prompt template
 
 ### 1.2 Value Objects
 
@@ -221,6 +222,7 @@ Test adapters against real infrastructure (SQLite, file system). Use test databa
 - OAuth2 token refresh
 - Fetch new emails
 - Download PDF attachments
+- Handle multiple attachments per email (process all PDFs individually)
 - Handle connection errors
 - Handle authentication errors
 
@@ -235,11 +237,6 @@ Test adapters against real infrastructure (SQLite, file system). Use test databa
 - Generate Excel with commission summary
 - Handle file write errors
 
-**SecretStore (Mock)**
-- Store API key securely
-- Retrieve API key
-- Handle keychain errors
-
 ---
 
 ## 3. Use Case Tests (Application Layer)
@@ -251,7 +248,7 @@ Test orchestration logic with mocked repositories and services.
 **FetchEmails**
 - Connect to Outlook via OAuth2
 - Download new PDFs
-- Create Document for each PDF
+- Create Document for each PDF (including multiple attachments per email)
 - Set status to PENDING
 - Calculate file hash
 - Skip already downloaded (by hash)
@@ -270,6 +267,7 @@ Test orchestration logic with mocked repositories and services.
 - Send PDF to AI extractor
 - Detect document type
 - Extract invoice data
+- Return extraction result with raw JSON for preview (HU-IA8)
 - Classify as ClientInvoice or ProviderInvoice
 - Create/update Client or Provider
 - Find or create Booking by BL reference
@@ -277,10 +275,32 @@ Test orchestration logic with mocked repositories and services.
 - Recalculate margin and commission
 - Update document status to PROCESSED
 - Handle AI extraction errors → status ERROR
-- Handle non-EUR currency → status ERROR
+- Handle non-EUR currency → status ERROR with INVALID_CURRENCY
 - Handle missing data → user completes manually
 - Track manually edited fields
 - Validate before saving
+- Reject PDF exceeding 20MB file size limit
+- Reject PDF exceeding 50 pages limit
+- Handle document type OTHER → status PROCESSED, no booking link
+- Handle scanned PDF → convert to images, send to Claude
+- Handle hybrid PDF → text + images combined
+
+**ProcessInvoiceBatch**
+- Process documents sequentially (not parallel)
+- Show progress indicator ("3 of 7")
+- User can Save & Continue to next
+- User can Skip → document stays PENDING
+- User can Cancel Batch → stop processing, keep saved
+- AI failure → mark ERROR, continue to next
+- API key invalid mid-batch → stop batch, show modal
+- Show batch summary toast at end
+
+**Multi-Booking Invoice**
+- Extract charges with different BL references
+- Create/update multiple bookings from single invoice
+- Distribute tax proportionally by charge amount
+- Link same invoice to multiple bookings
+- Booking detail shows only its portion of charges
 
 **ReprocessInvoice**
 - Re-send PDF to AI
@@ -337,7 +357,7 @@ Test orchestration logic with mocked repositories and services.
 ### 3.5 Configuration
 
 **ConfigureAPIKey**
-- Save API key to SecretStore
+- Save API key to Settings
 - Test connection to Claude API
 - Return success/error
 - Block AI features if invalid
@@ -349,6 +369,16 @@ Test orchestration logic with mocked repositories and services.
 
 **ConfigureAgent**
 - Save agent profile
+
+**ConfigurePrompt**
+- Save custom extraction prompt
+- Retrieve current prompt
+- Reset to default prompt
+- Validate prompt is used in ProcessInvoice
+- Validate prompt via test API call before save
+- Reject invalid prompt (missing required JSON fields)
+- Show validation error message
+- Require valid API key for validation
 
 ---
 
@@ -413,8 +443,11 @@ Test complete user journeys through the API.
 ```
 1. Process document (packing list)
 2. AI detects type = OTHER
-3. User can still complete data manually
-4. Document marked PROCESSED
+3. Document marked PROCESSED with type OTHER
+4. User sees simplified view with extraction notes
+5. User can Override to classify as invoice
+6. If overridden, user fills required fields manually
+7. Invoice saved and linked to booking
 ```
 
 ### 4.7 Crash Recovery
@@ -427,6 +460,39 @@ Test complete user journeys through the API.
 5. Warning shown for stuck documents
 6. User retries
 7. Processing completes
+```
+
+### 4.8 Multi-Booking Invoice Processing
+
+```
+1. Process carrier invoice with 2 BL references
+2. AI extracts charges grouped by BL
+3. Two bookings created/updated
+4. Tax distributed proportionally
+5. View booking 1 → shows only its charges
+6. View booking 2 → shows only its charges
+7. Both link to same source PDF
+```
+
+### 4.9 Non-EUR Currency Rejection
+
+```
+1. Process invoice in USD
+2. AI detects currency_valid = false
+3. Document → ERROR with INVALID_CURRENCY
+4. User sees currency error message
+5. User can Override with manual EUR amounts
+6. Or Dismiss to leave in ERROR state
+```
+
+### 4.10 Pre-condition Validation
+
+```
+1. Clear company NIF from Settings
+2. Try to process document
+3. Modal: "Configure company NIF first"
+4. User configures NIF
+5. Processing now allowed
 ```
 
 ---

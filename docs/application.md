@@ -18,6 +18,7 @@ Use cases orchestrate domain entities to fulfill user stories. Each use case map
 | Use Case | Description | User Stories |
 |----------|-------------|--------------|
 | **ProcessInvoice** | Send PDF to AI, detect document type, extract data, preview for validation, classify by NIF, attribute to bookings. User can complete missing data manually. | HU-IA2, HU-IA3, HU-IA4, HU-IA5, HU-IA6, HU-IA8 |
+| **ProcessInvoiceBatch** | Process multiple selected documents sequentially with defined failure handling. | HU-IA2 |
 | **ReprocessInvoice** | Re-extract data from already processed document | HU-IA7 |
 
 ### Booking Management
@@ -29,6 +30,13 @@ Use cases orchestrate domain entities to fulfill user stories. Each use case map
 | **EditBooking** | Edit booking data after saving (no delete, no manual creation) | — |
 | **MarkBookingComplete** | Change status from PENDING → COMPLETE | HU4.4 |
 
+**EditBooking Field Permissions:**
+- ✅ Editable: `id` (BL reference), `client`, `pol`, `pod`, `vessel`, `containers`, `status`
+- ✅ Editable: Individual charge `description`, `amount`, `charge_category`
+- ❌ Not editable: `created_at`, `invoice_number`, `invoice_date`, source document links
+- ❌ Not allowed: Delete charges, delete invoices, create charges manually
+- ⚠️ Recalculation: Editing charge amounts triggers automatic recalculation of booking totals/margin
+
 *Note: HU4.3 (incremental invoice attribution) is handled by ProcessInvoice — it finds or creates bookings automatically.*
 
 ### Reporting
@@ -39,6 +47,11 @@ Use cases orchestrate domain entities to fulfill user stories. Each use case map
 | **GenerateExcelReport** | Export filtered data (by date, client, booking) | HU7.1 |
 | **ExportBooking** | Export single booking detail to Excel | HU7.2 |
 
+**Report Date Filtering:**
+- Commission Report: Filters by `booking.created_at` (when first invoice arrived)
+- Excel Report: User selects date field — `booking.created_at` OR `invoice.invoice_date`
+- Default: `booking.created_at` for consistency
+
 ### Configuration
 
 | Use Case | Description | User Stories |
@@ -46,7 +59,7 @@ Use cases orchestrate domain entities to fulfill user stories. Each use case map
 | **ConfigureAPIKey** | Set Anthropic API key, test connection | HU-IA1 |
 | **ConfigureCompany** | Set company NIF (for invoice classification) and commission rate | HU5.1 |
 | **ConfigureAgent** | Set agent profile (name, email, phone) | HU5.2 |
-| **ConfigurePrompt** | Edit AI extraction prompt template | — |
+| **ConfigurePrompt** | Edit AI extraction prompt template with validation | — |
 
 ---
 
@@ -102,7 +115,6 @@ Interfaces that the domain needs from the outside world.
 - **EmailClient** — Fetch emails from Outlook
 - **FileStorage** — Store/retrieve PDFs (iCloud Drive)
 - **ReportGenerator** — Generate Excel files
-- **SecretStore** — Encrypted settings file with machine-specific key
 
 ---
 
@@ -128,13 +140,94 @@ Invoices are **source documents** that contribute charges to bookings. A single 
 Invoices for the same booking arrive on **different days**:
 
 ```
-Day 1: Shipping line invoice → Booking CREATED (OPEN), Costs: €2,500
+Day 1: Shipping line invoice → Booking CREATED (PENDING), Costs: €2,500
 Day 3: Carrier invoice       → Booking UPDATED, Costs: €5,500  
 Day 5: Client invoice        → Booking UPDATED, Revenue: €6,500, Margin: €1,000
        User marks COMPLETE   → Commission: €500
 ```
 
-**Status Flow:** `PENDING → COMPLETE`
+**Status Flow:** `PENDING ↔ COMPLETE` (reversible — user can revert to PENDING if more invoices arrive)
+
+### Multi-Booking Invoice Handling
+
+A single provider invoice (e.g., carrier) may contain charges for **multiple bookings**. The AI extracts charges with their `bl_reference`. Processing rules:
+
+1. **Charge allocation**: Each charge is attributed to its specific booking by `bl_reference`
+2. **Tax allocation**: Taxes are distributed **proportionally** by charge amount per booking
+3. **Invoice totals**: The full invoice total is stored on the invoice entity; individual booking views show only their portion
+4. **Invoice linkage**: The same invoice appears linked to multiple bookings (with different charge subsets)
+
+Example: Invoice with €1,000 total (BL-001: €600, BL-002: €400, Tax: €210)
+- BL-001 receives: €600 charges + €126 tax (60%)
+- BL-002 receives: €400 charges + €84 tax (40%)
+
+### Document Type OTHER Handling
+
+When AI detects a document that is not an invoice (packing list, bill of lading, etc.):
+
+1. Document status set to **PROCESSED** with type **OTHER**
+2. User sees a simplified view with:
+   - Document metadata (filename, date, sender)
+   - AI's extraction notes explaining why it's not an invoice
+   - Option to **Override**: manually classify as CLIENT_INVOICE or PROVIDER_INVOICE
+3. If overridden, user must manually fill all required invoice fields
+4. OTHER documents are **not** linked to bookings unless overridden and completed
+
+### Non-EUR Currency Handling
+
+All amounts must be in EUR. When AI detects a non-EUR currency:
+
+1. `currency_valid` is set to `false` in extraction result
+2. Document status set to **ERROR** with error type `INVALID_CURRENCY`
+3. User sees error message: "Invoice currency is {detected_currency}. Only EUR invoices are supported."
+4. User options:
+   - **Dismiss**: Mark document as not processable (stays in ERROR)
+   - **Override**: Manually enter EUR amounts (original currency noted in extraction_metadata)
+
+*Note: No automatic currency conversion. User must obtain EUR-equivalent amounts externally.*
+
+### Scanned PDF Detection
+
+PDF processing flow:
+
+1. **Text extraction attempt**: Use pypdf to extract text
+2. **Detection criteria**: If extracted text is < 100 characters or contains mostly gibberish (high ratio of non-alphanumeric characters), PDF is considered scanned
+3. **Scanned handling**: Convert each page to PNG (300 DPI, RGB) and send as images to Claude
+4. **Hybrid PDFs**: Some pages text, some scanned — extract text where available, send images for scanned pages
+5. **Page limit**: Max 50 pages; if exceeded, reject with error before sending to AI
+
+### Batch Processing Behavior
+
+When user selects multiple documents and clicks "Process Selected":
+
+1. **Sequential processing**: Documents are processed one at a time (not in parallel) to avoid API rate limits and allow user review
+2. **Per-document modal**: After each AI extraction, the Process Invoice modal opens for user review
+3. **User actions per document**:
+   - **Save & Continue**: Save invoice, proceed to next document
+   - **Skip**: Leave document as PENDING, proceed to next
+   - **Cancel Batch**: Stop processing remaining documents (already-saved invoices are kept)
+4. **Failure handling**:
+   - If AI extraction fails → document marked ERROR, user sees error message, batch continues to next document
+   - If user closes modal without action → document stays PENDING, batch continues
+5. **Progress indicator**: "Processing 3 of 7 documents" shown in modal header
+6. **Batch summary**: After all documents processed, toast shows "Processed 5 invoices, 1 skipped, 1 error"
+
+### Prompt Customization Validation
+
+When user edits the extraction prompt in Settings:
+
+1. **Schema validation**: Before saving, the app sends a test request to Claude with a sample PDF
+2. **Response validation**: The response must:
+   - Be valid JSON
+   - Contain required top-level fields: `document_type`, `invoice`
+   - Contain required invoice fields: `invoice_number`, `issuer`, `recipient`, `charges`, `totals`
+3. **Validation feedback**:
+   - ✅ "Prompt validated successfully" → Save enabled
+   - ❌ "Invalid prompt: missing field 'charges'" → Save disabled, error shown
+4. **Test PDF**: A built-in sample invoice PDF is used for validation (not user documents)
+5. **Reset option**: "Reset to Default" restores the original prompt template
+
+*Note: Validation uses a real Claude API call, so requires valid API key.*
 
 ---
 
@@ -150,12 +243,12 @@ Day 5: Client invoice        → Booking UPDATED, Revenue: €6,500, Margin: €
 - Method: `calculate_agent_commission(rate)`
 
 ### ClientInvoice (Revenue)
-- `invoice_number` (unique per client), `client_id`, `invoice_date`
+- `invoice_number` (unique per issuer — i.e., per client), `client_id`, `invoice_date`
 - `bl_reference`, `total_amount`, `tax_amount`
 - `charges[]`, `source_document`, `extraction_metadata`
 
 ### ProviderInvoice (Cost)
-- `invoice_number` (unique per provider), `provider_id`, `invoice_date`
+- `invoice_number` (unique per issuer — i.e., per provider), `provider_id`, `invoice_date`
 - `bl_reference`, `total_amount`, `tax_amount`
 - `charges[]`, `source_document`, `extraction_metadata`
 
@@ -171,9 +264,22 @@ Day 5: Client invoice        → Booking UPDATED, Revenue: €6,500, Margin: €
 - `name`, `nif` (unique)
 - Auto-created when processing client invoices
 
+**Client Auto-creation Rules:**
+- Required: `nif` (must be non-empty after NIF normalization)
+- Optional: `name` (defaults to "Unknown Client" if not extracted)
+- If NIF matches existing client, reuse existing record (no duplicate)
+- Client name can be updated later via booking edit
+
 ### Provider
 - `name`, `nif` (unique), `provider_type` (SHIPPING, CARRIER, INSPECTION, OTHER)
 - Auto-created when processing provider invoices
+
+**Provider Auto-creation Rules:**
+- Required: `nif` (must be non-empty after NIF normalization)
+- Required: `provider_type` (defaults to OTHER if AI cannot determine)
+- Optional: `name` (defaults to "Unknown Provider" if not extracted)
+- If NIF matches existing provider, reuse existing record
+- Provider type can be corrected later; changes do NOT affect historical charges
 
 ### Company (Singleton)
 - `name`, `nif` — used to classify invoices (issuer NIF = ours → revenue)
@@ -193,13 +299,15 @@ Day 5: Client invoice        → Booking UPDATED, Revenue: €6,500, Margin: €
 | Value Object | Fields |
 |--------------|--------|
 | **Money** | `amount`, `currency` (always EUR) |
-| **BookingCharge** | `booking_id`, `invoice_id`, `provider_type`, `container`, `description`, `amount` |
+| **BookingCharge** | `booking_id`, `invoice_id`, `charge_category`, `provider_type`, `container`, `description`, `amount` |
 | **ClientInfo** | `client_id`, `name`, `nif` (denormalized in Booking) |
 | **Port** | `code`, `name` |
 | **FileHash** | `algorithm`, `value` |
 | **EmailReference** | `message_id`, `subject`, `sender`, `received_at` |
+
+*Note: Email body is NOT stored. Only metadata needed for deduplication and display. Subject stored for potential future search/filtering.*
 | **DocumentReference** | `document_id`, `filename`, `file_hash` |
-| **ExtractionMetadata** | `ai_model`, `confidence`, `raw_json`, `manually_edited_fields`, `processed_at` |
+| **ExtractionMetadata** | `ai_model`, `overall_confidence`, `field_confidences`, `raw_json`, `manually_edited_fields`, `processed_at` |
 | **ErrorInfo** | `error_type`, `error_message`, `occurred_at`, `retryable` |
 
 ## Enums
@@ -210,6 +318,27 @@ Day 5: Client invoice        → Booking UPDATED, Revenue: €6,500, Margin: €
 | **ProcessingStatus** | PENDING, PROCESSING, PROCESSED, ERROR |
 | **DocumentType** | CLIENT_INVOICE, PROVIDER_INVOICE, OTHER |
 | **ProviderType** | SHIPPING, CARRIER, INSPECTION, OTHER |
+| **ChargeCategory** | FREIGHT, HANDLING, DOCUMENTATION, TRANSPORT, INSPECTION, INSURANCE, OTHER |
+| **ConfidenceLevel** | HIGH, MEDIUM, LOW |
+| **ErrorType** | NIF_NOT_CONFIGURED, API_KEY_MISSING, API_KEY_INVALID, OUTLOOK_DISCONNECTED, AI_TIMEOUT, AI_RATE_LIMIT, FILE_TOO_LARGE, TOO_MANY_PAGES, DISK_FULL, ICLOUD_UNAVAILABLE, DUPLICATE_DOCUMENT, INVALID_CURRENCY |
+
+### Charge Category to Provider Type Mapping
+
+When creating `BookingCharge` from AI extraction, the `charge_category` comes directly from AI. The `provider_type` is determined by the invoice's provider, not the charge category. Both are stored for reporting flexibility:
+
+- `charge_category`: What type of service (FREIGHT, TRANSPORT, etc.)
+- `provider_type`: Who provided it (SHIPPING, CARRIER, etc.)
+
+### Confidence Aggregation
+
+`overall_confidence` is calculated as the **minimum** confidence of critical fields:
+- `document_type_confidence`
+- `invoice_number_confidence`
+- `issuer.nif_confidence`
+- `recipient.nif_confidence`
+- `total_confidence`
+
+Mapping: HIGH = 100%, MEDIUM = 70%, LOW = 40%. The overall percentage shown in UI is the minimum of these values.
 
 ---
 
@@ -220,6 +349,41 @@ Day 5: Client invoice        → Booking UPDATED, Revenue: €6,500, Margin: €
 | **InvoiceClassifier** | Classify invoice as ClientInvoice/ProviderInvoice based on NIF |
 | **DuplicateChecker** | Detect duplicate invoices by file hash |
 | **InvoiceValidator** | Validate extracted data completeness |
+
+---
+
+## Error Handling
+
+### Pre-condition Errors
+
+These errors block operations and require user action:
+
+| Error | When | User Action |
+|-------|------|-------------|
+| **NIF_NOT_CONFIGURED** | ProcessInvoice called without company NIF | Modal: "Configure company NIF in Settings before processing invoices" |
+| **API_KEY_MISSING** | ProcessInvoice called without Anthropic API key | Modal: "Configure API key in Settings" |
+| **API_KEY_INVALID** | Claude returns 401 Unauthorized | Toast error + redirect to Settings, API key field highlighted |
+| **OUTLOOK_DISCONNECTED** | FetchEmails called with invalid/expired OAuth | Toast: "Outlook disconnected" + Settings shows reconnect button |
+
+### Runtime Errors
+
+| Error | When | Behavior |
+|-------|------|----------|
+| **AI_TIMEOUT** | Claude API call exceeds 60s | Document → ERROR, retryable=true |
+| **AI_RATE_LIMIT** | Claude returns 429 | Document → ERROR, show "Try again in X minutes", retryable=true |
+| **FILE_TOO_LARGE** | PDF > 20MB | Document → ERROR, retryable=false, message shows limit |
+| **TOO_MANY_PAGES** | PDF > 50 pages | Document → ERROR, retryable=false |
+| **DISK_FULL** | Cannot save PDF to iCloud | Toast error: "Disk full. Free up space and retry." Document stays PENDING |
+| **ICLOUD_UNAVAILABLE** | iCloud Drive not accessible | Toast warning: "iCloud unavailable. PDFs saved locally." Fallback to `~/Documents/AIBookkeeper/` |
+| **DUPLICATE_DOCUMENT** | File hash already exists | Toast info: "Document already imported." Skip silently during fetch |
+
+### API Key Expiry Mid-Batch
+
+If API key becomes invalid during batch processing:
+1. Current document → ERROR with `API_KEY_INVALID`
+2. Batch processing stops immediately
+3. User sees modal: "API key invalid. Configure in Settings to continue."
+4. Remaining documents stay PENDING
 
 ---
 

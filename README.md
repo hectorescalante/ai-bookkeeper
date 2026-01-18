@@ -26,7 +26,7 @@ Your commission is calculated per **booking**: `(Revenue - Costs) × 50%`
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  1. RECEIVE                                                     │
-│     Click "Search new invoices" → App finds PDFs in your email │
+│     Click "Fetch Emails" → App finds PDFs in your email        │
 ├─────────────────────────────────────────────────────────────────┤
 │  2. PROCESS                                                     │
 │     Select pending documents → AI extracts all the data         │
@@ -82,6 +82,129 @@ All of this is tracked automatically as invoices arrive.
 ## Project Status
 
 🚧 **In Development** - See [docs/](docs/) for detailed specifications.
+
+## Development
+
+### Prerequisites
+
+- **macOS** 12 (Monterey) or later
+- **Rust** (install via [rustup](https://rustup.rs/))
+- **Python 3.11+** (install via Homebrew: `brew install python@3.11`)
+- **Node.js 20+** (install via Homebrew: `brew install node`)
+- **pnpm** (install via npm: `npm install -g pnpm`)
+- **uv** (Python package manager, install via: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
+
+### Clone and Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/ai-bookkeeper.git
+cd ai-bookkeeper
+
+# Copy environment template
+cp .env.development .env
+
+# Install Python dependencies
+uv sync --all-extras
+
+# Install frontend dependencies
+cd src/frontend
+pnpm install
+cd ../..
+```
+
+### Running the Application
+
+**Backend only (API server):**
+```bash
+uv run uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+**Frontend only (development):**
+```bash
+cd src/frontend
+pnpm dev
+```
+
+**Full Tauri app (development):**
+```bash
+cd src/frontend
+pnpm tauri dev
+```
+
+### Running Tests
+
+**Backend tests:**
+```bash
+uv run pytest tests -v
+```
+
+**Backend tests with coverage:**
+```bash
+uv run pytest tests -v --cov=src/backend --cov-report=term-missing
+```
+
+**Linting and type checking:**
+```bash
+uv run ruff check src/backend tests
+uv run mypy src/backend
+```
+
+**Frontend type checking:**
+```bash
+cd src/frontend
+pnpm vue-tsc --noEmit
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `APP_ENV` | Environment (development/production/test) | `development` |
+| `DEBUG` | Enable debug mode | `false` |
+| `API_HOST` | API server host | `127.0.0.1` |
+| `API_PORT` | API server port | `8000` |
+| `DATABASE_URL` | SQLite database URL | `sqlite:///data/ai_bookkeeper.db` |
+| `ANTHROPIC_API_KEY` | Claude API key (optional, can configure in UI) | - |
+| `AZURE_CLIENT_ID` | Azure AD app client ID for Outlook | - |
+| `AZURE_TENANT_ID` | Azure AD tenant ID | `common` |
+| `ICLOUD_ENABLED` | Enable iCloud Drive for PDF storage | `true` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+
+### Azure App Registration (for Outlook)
+
+To enable email fetching from Outlook:
+
+1. Go to [Azure Portal](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps)
+2. Register a new application
+3. Set redirect URI: `http://localhost:8000/api/settings/outlook/callback`
+4. Add API permissions: `Mail.Read`, `Mail.ReadBasic`, `User.Read`, `offline_access`
+5. Copy the Client ID to your `.env` file as `AZURE_CLIENT_ID`
+
+> **Note**: This is free - no API costs for reading emails.
+
+### Project Structure
+
+```
+ai-bookkeeper/
+├── src/
+│   ├── backend/              # Python FastAPI backend
+│   │   ├── domain/           # Business logic (entities, value objects, services)
+│   │   ├── application/      # Use cases
+│   │   ├── ports/            # Interfaces (input/output)
+│   │   ├── adapters/         # Implementations (API, persistence, external)
+│   │   └── config/           # Configuration
+│   └── frontend/             # Tauri + Vue 3 frontend
+│       ├── src/              # Vue components, views, stores
+│       └── src-tauri/        # Tauri configuration
+├── tests/                    # Backend tests
+├── docs/                     # Documentation
+└── data/                     # Local database (gitignored)
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 

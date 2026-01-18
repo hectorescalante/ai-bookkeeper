@@ -78,10 +78,10 @@ For the business domain model (entities, value objects, business rules), see [ap
          │     Repositories  │  External Services    │
          └─────────────────────┬─────────────────────┘
                                │
-         ┌─────────────────────▼─────────────────────┐
+         ┌─────────────────────┴─────────────────────┐
          │            DRIVEN ADAPTERS                │
          │  SQLite │ Anthropic │ Outlook │ iCloud    │
-         │  Excel  │ Keychain                        │
+         │  Excel  │ PDF                             │
          └───────────────────────────────────────────┘
 ```
 
@@ -96,11 +96,40 @@ Concrete implementations of output ports.
 
 - **SQLite Adapter** — All repositories use local SQLite database (Alembic migrations)
 - **Anthropic Adapter** — Claude Sonnet 4.5 API integration (direct Anthropic API)
-- **Outlook Adapter** — Microsoft Graph API with OAuth2 user consent
+- **Outlook Adapter** — Microsoft Graph API with OAuth2 user consent (see OAuth2 details below)
 - **iCloud Adapter** — Local filesystem in iCloud Drive folder (manual cleanup, user responsibility)
 - **Excel Adapter** — Generate .xlsx files using openpyxl
-- **SecretStore Adapter** — Encrypted settings file (`settings.enc`) with machine-specific key
 - **PDF Adapter** — pypdf for text extraction; scanned PDFs sent as images directly to Claude
+
+#### PDF Processing Limits
+- **Max file size**: 20 MB
+- **Max pages**: 50 pages
+- **Image conversion**: 300 DPI, PNG format for scanned pages
+
+#### OAuth2 Implementation (Microsoft Graph)
+
+**Required Scopes:**
+- `Mail.Read` — Read user's mail
+- `Mail.ReadBasic` — Read basic mail properties
+- `User.Read` — Sign in and read user profile
+- `offline_access` — Maintain access (refresh tokens)
+
+**Token Storage:**
+- Access token and refresh token stored in SQLite Settings table
+- Tokens are encrypted at rest using system keychain (macOS Keychain Services)
+- Token fields: `outlook_access_token`, `outlook_refresh_token`, `outlook_token_expiry`
+
+**Token Refresh Flow:**
+1. Before each email fetch, check if access token expires within 5 minutes
+2. If expiring, use refresh token to obtain new access token
+3. If refresh fails (token revoked, expired), set `outlook_configured = false`
+4. User sees "Outlook disconnected" in Settings, must re-authenticate
+
+**Re-authentication:**
+- User clicks "Connect Account" in Settings
+- Opens system browser for Microsoft OAuth consent
+- App receives authorization code via localhost redirect
+- Exchanges code for tokens, stores encrypted
 
 ### Driving Adapters (UI/API)
 How external actors interact with the application.
@@ -180,7 +209,7 @@ Released application for end users.
 
 | Component | Configuration |
 |-----------|---------------|
-| **App** | Signed + notarized macOS build |
+|| **App** | Unsigned build (single customer distribution) |
 | **Database** | SQLite: `~/Library/Application Support/AIBookkeeper/data.db` |
 | **AI API** | User's own Anthropic API key |
 | **Outlook** | Real OAuth (user's account) |
@@ -330,11 +359,17 @@ zip -r AIBookkeeper-v1.0.0.zip target/release/bundle/macos/AIBookkeeper.app
 
 ## Security Considerations
 
-- **API Keys**: Stored in encrypted settings file (`settings.enc`) with machine-specific encryption key. On new machine, user re-enters API key.
+- **API Keys**: Anthropic API key stored in SQLite database (Settings table). Stored as plaintext but protected by:
+  - Database file is local-only in `~/Library/Application Support/AIBookkeeper/`
+  - Standard macOS file permissions (user-only read/write)
+  - App sandbox (when distributed via notarized build)
+  - *Future consideration*: Migrate to macOS Keychain for sensitive credentials
+- **OAuth Tokens**: Outlook tokens encrypted using macOS Keychain Services before storage
 - **No External Hosting**: All data remains local
 - **Human Approval**: No automatic persistence without user confirmation
 - **Audit Trail**: Domain events provide full traceability
 - **Logs**: No sensitive data in logs; diagnostic bundle excludes business data
+- **PDF Content**: Invoice PDFs stored locally in iCloud Drive; no cloud processing except Claude API calls
 
 ## Out of Scope
 

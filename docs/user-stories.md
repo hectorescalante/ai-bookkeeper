@@ -67,7 +67,7 @@
 - User can click "Test connection" and the app:
   - Makes a test request to Claude Sonnet 4.5
   - Shows "Valid connection" if successful
-- The key is stored locally and securely
+- The key is stored in the local SQLite database
 - If the key is invalid, the app shows a clear error and blocks the AI module
 
 ### HU-IA2 – Process PDF with AI (Text or Images)
@@ -241,7 +241,7 @@
 **So that** I can track my earnings and report to the company
 
 **Acceptance Criteria:**
-- Filter by date range and status (Complete/Closed)
+- Filter by date range and status (Pending/Complete)
 - Shows: Booking ID, Client, Revenue, Costs, Margin, Commission
 - Totals at the bottom
 - Export to Excel
