@@ -3,6 +3,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.adapters.api.exceptions import register_exception_handlers
+from backend.adapters.api.routes import bookings, config, documents
+
 app = FastAPI(
     title="AI Bookkeeper",
     description="AI-powered invoice processing for commercial agents",
@@ -17,6 +20,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register exception handlers
+register_exception_handlers(app)
+
+# Register API routers
+app.include_router(config.router)
+app.include_router(documents.router)
+app.include_router(bookings.router)
 
 
 @app.get("/health")

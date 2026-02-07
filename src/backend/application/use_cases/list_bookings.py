@@ -1,0 +1,54 @@
+"""Use case for listing bookings."""
+
+from decimal import Decimal
+
+from backend.application.dtos import BookingListItem, ListBookingsRequest
+from backend.domain.enums import BookingStatus
+from backend.ports.output.repositories import BookingFilters, BookingRepository, BookingSort
+
+
+class ListBookingsUseCase:
+    """List bookings with filtering and sorting."""
+
+    def __init__(
+        self,
+        booking_repo: BookingRepository,
+        company_commission_rate: Decimal = Decimal("0.50"),
+    ):
+        self.booking_repo = booking_repo
+        self.commission_rate = company_commission_rate
+
+    def execute(self, request: ListBookingsRequest) -> list[BookingListItem]:
+        """Execute the use case."""
+        # Build filters
+        filters = BookingFilters(
+            client_id=request.client_id,
+            status=BookingStatus[request.status.upper()] if request.status else None,
+            date_from=request.date_from,
+            date_to=request.date_to,
+        )
+
+        # Build sort
+        sort = BookingSort(
+            field=request.sort_by,
+            descending=request.descending,
+        )
+
+        # Query bookings
+        bookings = self.booking_repo.list_all(filters=filters, sort=sort)
+
+        # Convert to DTOs
+        return [
+            BookingListItem(
+                id=booking.id,
+                client_name=booking.client.name if booking.client else None,
+                created_at=booking.created_at,
+                status=booking.status.value,
+                total_revenue=booking.total_revenue.amount,
+                total_costs=booking.total_costs.amount,
+                margin=booking.margin.amount,
+                commission=booking.calculate_agent_commission(self.commission_rate).amount,
+                document_count=len(booking.revenue_charges) + len(booking.cost_charges),
+            )
+            for booking in bookings
+        ]
