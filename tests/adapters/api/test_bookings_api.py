@@ -13,18 +13,35 @@ from backend.domain.value_objects import BookingCharge, ClientInfo, Money
 @pytest.fixture
 def sample_bookings(db_session):
     """Create sample bookings for testing."""
+    from uuid import uuid4
+
+    from backend.adapters.persistence.models.party import ClientModel
     from backend.adapters.persistence.repositories.booking_repository import (
         SqlAlchemyBookingRepository,
     )
 
-    repo = SqlAlchemyBookingRepository(db_session)
+    # First, create clients in the database
+    from datetime import datetime
 
-    from uuid import uuid4
+    client_id1 = uuid4()
+    client_id2 = uuid4()
+
+    client1 = ClientModel(
+        id=client_id1, name="Client A", nif="B12345678", created_at=datetime.now()
+    )
+    client2 = ClientModel(
+        id=client_id2, name="Client B", nif="B87654321", created_at=datetime.now()
+    )
+
+    db_session.add(client1)
+    db_session.add(client2)
+    db_session.commit()
+
+    # Now create bookings
+    repo = SqlAlchemyBookingRepository(db_session)
 
     # Create booking with charges
     booking1 = Booking.create("BL-2024-001")
-    client_id1 = uuid4()
-    client_id2 = uuid4()
     booking1.update_client(ClientInfo(client_id1, "Client A", "B12345678"))
     invoice_id1 = uuid4()
     invoice_id2 = uuid4()

@@ -30,7 +30,7 @@ class ViewBookingDetailUseCase:
             id=booking.id,
             created_at=booking.created_at,
             status=booking.status.value,
-            client_id=booking.client.id if booking.client else None,
+            client_id=booking.client.client_id if booking.client else None,
             client_name=booking.client.name if booking.client else None,
             client_nif=booking.client.nif if booking.client else None,
             pol_code=booking.pol.code if booking.pol else None,
