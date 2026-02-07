@@ -69,6 +69,7 @@ def sample_bookings(db_session):
     )
     repo.save(booking2)
 
+    # Commit to ensure data is persisted
     db_session.commit()
     return [booking1, booking2]
 
