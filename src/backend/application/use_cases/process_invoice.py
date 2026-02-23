@@ -238,10 +238,15 @@ class ProcessInvoiceUseCase:
 
         # Determine if scanned
         is_scanned = len(full_text.strip()) < MIN_TEXT_LENGTH
-
-        # For scanned PDFs, we would convert pages to images here.
-        # For now, we send text. Image conversion will be added when needed.
+        # Extract embedded page images for scanned PDFs.
         page_images: list[bytes] = []
+        if is_scanned:
+            page_images = self._extract_page_images(reader)
+            if not page_images:
+                logger.warning(
+                    "Scanned PDF detected but no embedded images were extracted",
+                    extra={"document_filename": filename, "page_count": page_count},
+                )
 
         return PDFContent(
             text_content=full_text,
@@ -250,6 +255,33 @@ class ProcessInvoiceUseCase:
             is_scanned=is_scanned,
             filename=filename,
         )
+
+    def _extract_page_images(self, reader: PdfReader) -> list[bytes]:
+        """Extract embedded image bytes from all PDF pages."""
+        extracted_images: list[bytes] = []
+
+        for page_index, page in enumerate(reader.pages):
+            try:
+                page_images = getattr(page, "images", [])
+                for image in page_images:
+                    image_bytes = self._extract_image_bytes(image)
+                    if image_bytes:
+                        extracted_images.append(image_bytes)
+            except Exception as err:
+                logger.warning(
+                    "Failed to extract images from PDF page",
+                    extra={"page_index": page_index, "error": str(err)},
+                )
+
+        return extracted_images
+
+    @staticmethod
+    def _extract_image_bytes(image: Any) -> bytes | None:
+        """Return raw bytes for a pypdf image object when available."""
+        image_data = getattr(image, "data", None)
+        if isinstance(image_data, bytes) and image_data:
+            return image_data
+        return None
 
     def _calculate_overall_confidence(
         self,

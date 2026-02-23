@@ -91,10 +91,14 @@ class GeminiExtractor(AIExtractor):
 
         # Add page images for scanned PDFs
         for image_bytes in pdf_content.page_images:
+            image_mime_type = self._detect_image_mime_type(image_bytes)
+            if image_mime_type is None:
+                logger.warning("Skipping page image with unsupported format")
+                continue
             contents.append(
                 types.Part.from_bytes(
                     data=image_bytes,
-                    mime_type="image/png",
+                    mime_type=image_mime_type,
                 )
             )
 
@@ -205,6 +209,23 @@ class GeminiExtractor(AIExtractor):
             )
 
         return data
+
+    @staticmethod
+    def _detect_image_mime_type(image_bytes: bytes) -> str | None:
+        """Best-effort image MIME type detection from file signatures."""
+        if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "image/png"
+        if image_bytes.startswith(b"\xff\xd8\xff"):
+            return "image/jpeg"
+        if image_bytes.startswith((b"GIF87a", b"GIF89a")):
+            return "image/gif"
+        if image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+            return "image/webp"
+        if image_bytes.startswith(b"BM"):
+            return "image/bmp"
+        if image_bytes.startswith((b"II*\x00", b"MM\x00*")):
+            return "image/tiff"
+        return None
 
     def _handle_error(self, error: Exception) -> Never:
         """Convert SDK exceptions to domain exceptions.

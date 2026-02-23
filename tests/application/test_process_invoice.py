@@ -365,3 +365,58 @@ class TestProcessInvoiceUseCase:
         assert response.currency_valid is False
         assert response.currency_detected == "USD"
         assert any("EUR" in e for e in response.errors)
+
+    def test_process_invoice_scanned_pdf_includes_page_images(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test scanned PDF branch extracts page images and sends them to AI."""
+
+        class FakeImage:
+            def __init__(self, data: bytes) -> None:
+                self.data = data
+
+        class FakePage:
+            def __init__(self) -> None:
+                self.images = [FakeImage(b"\x89PNG\r\n\x1a\nfake")]
+
+            def extract_text(self) -> str:
+                return ""
+
+        class FakeReader:
+            def __init__(self, _path: str) -> None:
+                self.pages = [FakePage()]
+
+        monkeypatch.setattr(
+            "backend.application.use_cases.process_invoice.PdfReader",
+            FakeReader,
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"not-a-real-pdf")
+            doc = _make_document(storage_path=f.name)
+
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = doc
+        settings_repo = MagicMock()
+        settings_repo.get.return_value = _make_settings()
+        company_repo = MagicMock()
+        company_repo.get.return_value = _make_company()
+
+        ai_extractor = MagicMock()
+        ai_extractor.extract_invoice_data.return_value = _make_extraction_result()
+
+        use_case = ProcessInvoiceUseCase(
+            document_repo=doc_repo,
+            settings_repo=settings_repo,
+            company_repo=company_repo,
+            ai_extractor=ai_extractor,
+        )
+
+        use_case.execute(ProcessInvoiceRequest(document_id=doc.id))
+
+        pdf_content = ai_extractor.extract_invoice_data.call_args.kwargs["pdf_content"]
+        assert pdf_content.is_scanned is True
+        assert pdf_content.has_text is False
+        assert pdf_content.has_images is True
+        assert len(pdf_content.page_images) == 1
