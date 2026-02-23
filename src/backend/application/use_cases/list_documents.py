@@ -43,7 +43,7 @@ class ListDocumentsUseCase:
                 processed_at=doc.processed_at,
                 email_sender=doc.email_reference.sender if doc.email_reference else None,
                 email_subject=doc.email_reference.subject if doc.email_reference else None,
-                error_message=doc.error_info.message if doc.error_info else None,
+                error_message=doc.error_info.error_message if doc.error_info else None,
                 error_retryable=doc.error_info.is_retryable if doc.error_info else None,
             )
             for doc in documents

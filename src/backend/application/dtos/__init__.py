@@ -11,7 +11,19 @@ from backend.application.dtos.config_dtos import (
     ConfigureSettingsRequest,
     SettingsResponse,
 )
-from backend.application.dtos.document_dtos import DocumentListItem, ListDocumentsRequest
+from backend.application.dtos.document_dtos import (
+    DocumentListItem,
+    FetchEmailsRequest,
+    FetchEmailsResponse,
+    ListDocumentsRequest,
+)
+from backend.application.dtos.invoice_dtos import (
+    ConfirmInvoiceRequest,
+    ConfirmInvoiceResponse,
+    ProcessInvoiceRequest,
+    ProcessInvoiceResponse,
+    SaveChargeInput,
+)
 
 __all__ = [
     "BookingDetailResponse",
@@ -20,7 +32,14 @@ __all__ = [
     "ConfigureCompanyRequest",
     "ConfigureSettingsRequest",
     "DocumentListItem",
+    "FetchEmailsRequest",
+    "FetchEmailsResponse",
+    "ConfirmInvoiceRequest",
+    "ConfirmInvoiceResponse",
     "ListBookingsRequest",
     "ListDocumentsRequest",
+    "ProcessInvoiceRequest",
+    "ProcessInvoiceResponse",
+    "SaveChargeInput",
     "SettingsResponse",
 ]

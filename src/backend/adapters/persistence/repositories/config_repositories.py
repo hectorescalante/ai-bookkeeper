@@ -15,6 +15,7 @@ from backend.adapters.persistence.models.configuration import (
     CompanyModel,
     SettingsModel,
 )
+from backend.adapters.security import OutlookRefreshTokenVault
 from backend.domain.entities.configuration import Agent, Company, Settings
 from backend.ports.output.repositories import AgentRepository, CompanyRepository, SettingsRepository
 
@@ -27,16 +28,13 @@ class SqlAlchemyCompanyRepository(CompanyRepository):
 
     def save(self, company: Company) -> None:
         """Save or update company configuration."""
-        # Check if company already exists
         existing = self.session.query(CompanyModel).first()
 
         if existing:
-            # Update existing
             existing.name = company.name
             existing.nif = company.nif
             existing.agent_commission_rate = company.agent_commission_rate
         else:
-            # Create new
             model = company_to_model(company)
             self.session.add(model)
 
@@ -58,16 +56,13 @@ class SqlAlchemyAgentRepository(AgentRepository):
 
     def save(self, agent: Agent) -> None:
         """Save or update agent profile."""
-        # Check if agent already exists
         existing = self.session.query(AgentModel).first()
 
         if existing:
-            # Update existing
             existing.name = agent.name
             existing.email = agent.email
             existing.phone = agent.phone
         else:
-            # Create new
             model = agent_to_model(agent)
             self.session.add(model)
 
@@ -86,22 +81,26 @@ class SqlAlchemySettingsRepository(SettingsRepository):
 
     def __init__(self, session: Session):
         self.session = session
+        self._token_vault = OutlookRefreshTokenVault()
 
     def save(self, settings: Settings) -> None:
         """Save or update application settings."""
-        # Check if settings already exist
         existing = self.session.query(SettingsModel).first()
+        previous_stored_token = existing.outlook_refresh_token if existing else ""
+        stored_token_value = self._prepare_stored_refresh_token(
+            settings=settings,
+            previous_stored_token=previous_stored_token,
+        )
 
         if existing:
-            # Update existing
-            existing.anthropic_api_key = settings.anthropic_api_key
+            existing.gemini_api_key = settings.gemini_api_key
             existing.outlook_configured = settings.outlook_configured
-            existing.outlook_refresh_token = settings.outlook_refresh_token
+            existing.outlook_refresh_token = stored_token_value
             existing.default_export_path = settings.default_export_path
             existing.extraction_prompt = settings.extraction_prompt
         else:
-            # Create new
             model = settings_to_model(settings)
+            model.outlook_refresh_token = stored_token_value
             self.session.add(model)
 
         self.session.commit()
@@ -111,4 +110,40 @@ class SqlAlchemySettingsRepository(SettingsRepository):
         model = self.session.query(SettingsModel).first()
         if model is None:
             return None
-        return model_to_settings(model)
+        settings = model_to_settings(model)
+        stored_token = model.outlook_refresh_token
+        resolved_token = self._token_vault.load_token(
+            settings.id,
+            stored_token,
+        )
+        if not settings.outlook_configured:
+            settings.outlook_refresh_token = ""
+            return settings
+
+        settings.outlook_refresh_token = resolved_token
+        if not resolved_token or self._token_vault.is_keychain_reference(stored_token):
+            return settings
+
+        try:
+            migrated_token_reference = self._token_vault.save_token(settings.id, resolved_token)
+        except RuntimeError:
+            return settings
+        if migrated_token_reference and migrated_token_reference != stored_token:
+            model.outlook_refresh_token = migrated_token_reference
+            self.session.commit()
+
+        settings.outlook_refresh_token = resolved_token
+        return settings
+
+    def _prepare_stored_refresh_token(
+        self,
+        settings: Settings,
+        previous_stored_token: str,
+    ) -> str:
+        if settings.outlook_configured and settings.outlook_refresh_token:
+            return self._token_vault.save_token(
+                settings.id,
+                settings.outlook_refresh_token,
+            )
+        self._token_vault.delete_token(settings.id, previous_stored_token)
+        return ""

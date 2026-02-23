@@ -29,7 +29,7 @@ class CompanyResponse:
 class ConfigureSettingsRequest:
     """Request to configure application settings."""
 
-    anthropic_api_key: str | None = None
+    gemini_api_key: str | None = None
     default_export_path: str | None = None
     extraction_prompt: str | None = None
 

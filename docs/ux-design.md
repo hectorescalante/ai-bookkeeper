@@ -279,7 +279,7 @@ Configuration screens.
 │                                                             │
 │  ┌─ Integrations ─────────────────────────────────────────┐ │
 │  │                                                         │ │
-│  │  Anthropic API                                         │ │
+│  │  Gemini API                                         │ │
 │  │  [••••••••••••••••••••••••••    ] [Test] ✅ Connected  │ │
 │  │                                                         │ │
 │  │  Outlook                                                │ │

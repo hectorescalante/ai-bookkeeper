@@ -22,7 +22,7 @@ class ExtractionMetadata:
     confidence levels and any manual edits made by the user.
     """
 
-    ai_model: str  # e.g., "claude-sonnet-4-5-20250514"
+    ai_model: str  # e.g., "gemini-3-pro"
     overall_confidence: ConfidenceLevel
     field_confidences: tuple[FieldConfidence, ...] = field(default_factory=tuple)
     raw_json: str = ""  # Original JSON response from AI

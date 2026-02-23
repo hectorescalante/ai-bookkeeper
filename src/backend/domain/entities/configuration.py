@@ -10,6 +10,9 @@ from backend.domain.entities.party import normalize_nif
 DEFAULT_EXTRACTION_PROMPT = """Extract invoice data from the following PDF document.
 Return a JSON object with the extracted information."""
 
+# Default AI model identifier
+DEFAULT_AI_MODEL = "gemini-3-pro"
+
 
 @dataclass
 class Company:
@@ -104,7 +107,7 @@ class Settings:
     """Application settings (singleton)."""
 
     id: UUID
-    anthropic_api_key: str = ""
+    gemini_api_key: str = ""
     outlook_configured: bool = False
     outlook_refresh_token: str = ""  # Encrypted, stored in keychain ideally
     default_export_path: str = ""
@@ -116,17 +119,17 @@ class Settings:
         return cls(id=uuid4())
 
     def set_api_key(self, api_key: str) -> None:
-        """Set Anthropic API key."""
-        self.anthropic_api_key = api_key
+        """Set Gemini API key."""
+        self.gemini_api_key = api_key
 
     def clear_api_key(self) -> None:
         """Clear API key."""
-        self.anthropic_api_key = ""
+        self.gemini_api_key = ""
 
     @property
     def has_api_key(self) -> bool:
         """Check if API key is configured."""
-        return bool(self.anthropic_api_key)
+        return bool(self.gemini_api_key)
 
     def set_outlook_configured(self, configured: bool, refresh_token: str = "") -> None:
         """Set Outlook connection status."""

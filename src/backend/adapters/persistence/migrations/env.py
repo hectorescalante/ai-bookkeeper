@@ -17,7 +17,7 @@ if config.config_file_name is not None:
 from backend.adapters.persistence.database import Base  # noqa: E402
 
 # Import all models here for autogenerate to detect them
-from backend.adapters.persistence.models import *  # noqa: F401, F403
+from backend.adapters.persistence.models import *  # noqa: E402, F401, F403
 
 target_metadata = Base.metadata
 

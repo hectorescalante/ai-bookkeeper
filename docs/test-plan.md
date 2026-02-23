@@ -282,7 +282,7 @@ Test orchestration logic with mocked repositories and services.
 - Reject PDF exceeding 20MB file size limit
 - Reject PDF exceeding 50 pages limit
 - Handle document type OTHER → status PROCESSED, no booking link
-- Handle scanned PDF → convert to images, send to Claude
+- Handle scanned PDF → convert to images, send to Gemini 3
 - Handle hybrid PDF → text + images combined
 
 **ProcessInvoiceBatch**
@@ -358,7 +358,7 @@ Test orchestration logic with mocked repositories and services.
 
 **ConfigureAPIKey**
 - Save API key to Settings
-- Test connection to Claude API
+- Test connection to Gemini 3 API
 - Return success/error
 - Block AI features if invalid
 
@@ -531,7 +531,7 @@ Test complete user journeys through the API.
 ### E2E Tests
 - Full application stack
 - Test database
-- Mocked Outlook/Claude APIs
+- Mocked Outlook/Gemini 3 APIs
 - Run before release
 
 ---

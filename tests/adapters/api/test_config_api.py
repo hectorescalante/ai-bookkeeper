@@ -2,7 +2,6 @@
 
 from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -61,7 +60,7 @@ def test_configure_settings(client: TestClient) -> None:
     response = client.post(
         "/api/config/settings",
         json={
-            "anthropic_api_key": "test-key-123",
+            "gemini_api_key": "test-key-123",
             "default_export_path": "/exports",
             "extraction_prompt": "Extract invoice data",
         },
@@ -80,7 +79,7 @@ def test_get_settings(client: TestClient) -> None:
     client.post(
         "/api/config/settings",
         json={
-            "anthropic_api_key": "test-key-123",
+            "gemini_api_key": "test-key-123",
             "default_export_path": "/exports",
             "extraction_prompt": "Extract invoice data",
         },

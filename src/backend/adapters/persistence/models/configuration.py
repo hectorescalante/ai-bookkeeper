@@ -1,9 +1,9 @@
 """SQLAlchemy models for configuration entities (singletons)."""
-
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Numeric, String, Text
+from sqlalchemy import DateTime, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.adapters.persistence.database import Base
@@ -39,8 +39,21 @@ class SettingsModel(Base):
     __tablename__ = "settings"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    anthropic_api_key: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    gemini_api_key: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     outlook_configured: Mapped[bool] = mapped_column(nullable=False, default=False)
     outlook_refresh_token: Mapped[str] = mapped_column(Text, nullable=False, default="")
     default_export_path: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     extraction_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class OutlookOAuthStateModel(Base):
+    """ORM model storing pending Outlook OAuth sessions."""
+
+    __tablename__ = "outlook_oauth_states"
+
+    state: Mapped[str] = mapped_column(String(255), primary_key=True)
+    flow_payload: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.now
+    )

@@ -1,7 +1,9 @@
 """Integration tests for configuration repositories (singletons)."""
 
 from decimal import Decimal
+from uuid import uuid4
 
+from backend.adapters.persistence.models.configuration import SettingsModel
 from backend.adapters.persistence.repositories import (
     SqlAlchemyAgentRepository,
     SqlAlchemyCompanyRepository,
@@ -17,13 +19,11 @@ class TestCompanyRepository:
         """Test saving and retrieving company configuration."""
         repo = SqlAlchemyCompanyRepository(db_session)
 
-        # Create and save
         company = Company.create(
             name="Test Company SA", nif="B12345678", commission_rate=Decimal("0.50")
         )
         repo.save(company)
 
-        # Retrieve
         retrieved = repo.get()
 
         assert retrieved is not None
@@ -35,18 +35,15 @@ class TestCompanyRepository:
         """Test that saving again updates existing record (singleton)."""
         repo = SqlAlchemyCompanyRepository(db_session)
 
-        # Create first
         company1 = Company.create(name="Company 1", nif="B11111111")
         repo.save(company1)
 
-        # Update with new data
         company2 = Company.create(
             name="Company 2 Updated", nif="B22222222", commission_rate=Decimal("0.45")
         )
-        company2.id = company1.id  # Same ID
+        company2.id = company1.id
         repo.save(company2)
 
-        # Should only have one record
         retrieved = repo.get()
         assert retrieved is not None
         assert retrieved.name == "Company 2 Updated"
@@ -69,11 +66,9 @@ class TestAgentRepository:
         """Test saving and retrieving agent profile."""
         repo = SqlAlchemyAgentRepository(db_session)
 
-        # Create and save
         agent = Agent.create(name="John Doe", email="john@example.com", phone="+34612345678")
         repo.save(agent)
 
-        # Retrieve
         retrieved = repo.get()
 
         assert retrieved is not None
@@ -85,16 +80,13 @@ class TestAgentRepository:
         """Test updating agent profile."""
         repo = SqlAlchemyAgentRepository(db_session)
 
-        # Create first
         agent1 = Agent.create(name="Agent 1", email="old@example.com")
         repo.save(agent1)
 
-        # Update
         agent2 = Agent.create(name="Agent Updated", email="new@example.com", phone="+34999")
         agent2.id = agent1.id
         repo.save(agent2)
 
-        # Retrieve
         retrieved = repo.get()
         assert retrieved is not None
         assert retrieved.name == "Agent Updated"
@@ -109,19 +101,17 @@ class TestSettingsRepository:
         """Test saving and retrieving application settings."""
         repo = SqlAlchemySettingsRepository(db_session)
 
-        # Create and save
         settings = Settings.create()
-        settings.set_api_key("sk-ant-test-key")
+        settings.set_api_key("test-gemini-key")
         settings.set_outlook_configured(True, "refresh_token_abc")
         settings.extraction_prompt = "Custom prompt template"
 
         repo.save(settings)
 
-        # Retrieve
         retrieved = repo.get()
 
         assert retrieved is not None
-        assert retrieved.anthropic_api_key == "sk-ant-test-key"
+        assert retrieved.gemini_api_key == "test-gemini-key"
         assert retrieved.outlook_configured is True
         assert retrieved.outlook_refresh_token == "refresh_token_abc"
         assert retrieved.extraction_prompt == "Custom prompt template"
@@ -130,22 +120,19 @@ class TestSettingsRepository:
         """Test updating settings."""
         repo = SqlAlchemySettingsRepository(db_session)
 
-        # Create initial
         settings1 = Settings.create()
         settings1.set_api_key("old-key")
         repo.save(settings1)
 
-        # Update
         settings2 = Settings.create()
         settings2.id = settings1.id
         settings2.set_api_key("new-key")
         settings2.default_export_path = "/path/to/exports"
         repo.save(settings2)
 
-        # Retrieve
         retrieved = repo.get()
         assert retrieved is not None
-        assert retrieved.anthropic_api_key == "new-key"
+        assert retrieved.gemini_api_key == "new-key"
         assert retrieved.default_export_path == "/path/to/exports"
 
     def test_get_empty_returns_none(self, db_session):
@@ -155,3 +142,127 @@ class TestSettingsRepository:
         result = repo.get()
 
         assert result is None
+
+    def test_get_migrates_legacy_plaintext_outlook_token_to_keychain_reference(self, db_session):
+        """Test legacy plaintext refresh token gets migrated to keychain reference on read."""
+        legacy_model = SettingsModel(
+            id=uuid4(),
+            gemini_api_key="",
+            outlook_configured=True,
+            outlook_refresh_token="legacy-refresh-token",
+            default_export_path="",
+            extraction_prompt="",
+        )
+        db_session.add(legacy_model)
+        db_session.commit()
+
+        repo = SqlAlchemySettingsRepository(db_session)
+
+        class FakeTokenVault:
+            def __init__(self):
+                self.saved: list[tuple[object, str]] = []
+
+            def save_token(self, settings_id, refresh_token):
+                self.saved.append((settings_id, refresh_token))
+                return f"keychain://ai-bookkeeper/outlook-refresh-token/settings-{settings_id}"
+
+            def load_token(self, _settings_id, stored_value):
+                return stored_value
+
+            def delete_token(self, _settings_id, _stored_value):
+                return None
+
+            def is_keychain_reference(self, stored_value):
+                return stored_value.startswith("keychain://")
+
+        fake_vault = FakeTokenVault()
+        repo._token_vault = fake_vault
+
+        retrieved = repo.get()
+        assert retrieved is not None
+        assert retrieved.outlook_refresh_token == "legacy-refresh-token"
+        assert fake_vault.saved == [(legacy_model.id, "legacy-refresh-token")]
+
+        stored = db_session.query(SettingsModel).first()
+        assert stored is not None
+        assert stored.outlook_refresh_token.startswith("keychain://ai-bookkeeper/outlook-refresh-token/")
+    def test_get_keeps_legacy_plaintext_when_keychain_migration_fails(self, db_session):
+        """Test plaintext token remains usable if migration to keychain fails."""
+        legacy_model = SettingsModel(
+            id=uuid4(),
+            gemini_api_key="",
+            outlook_configured=True,
+            outlook_refresh_token="legacy-refresh-token",
+            default_export_path="",
+            extraction_prompt="",
+        )
+        db_session.add(legacy_model)
+        db_session.commit()
+
+        repo = SqlAlchemySettingsRepository(db_session)
+
+        class FailingMigrationTokenVault:
+            def save_token(self, _settings_id, _refresh_token):
+                raise RuntimeError("Keychain unavailable")
+
+            def load_token(self, _settings_id, stored_value):
+                return stored_value
+
+            def delete_token(self, _settings_id, _stored_value):
+                return None
+
+            def is_keychain_reference(self, stored_value):
+                return stored_value.startswith("keychain://")
+
+        repo._token_vault = FailingMigrationTokenVault()
+
+        retrieved = repo.get()
+        assert retrieved is not None
+        assert retrieved.outlook_refresh_token == "legacy-refresh-token"
+
+        stored = db_session.query(SettingsModel).first()
+        assert stored is not None
+        assert stored.outlook_refresh_token == "legacy-refresh-token"
+
+    def test_disconnect_settings_clears_existing_keychain_reference(self, db_session):
+        """Test Outlook disconnect clears stored reference and calls vault cleanup."""
+        repo = SqlAlchemySettingsRepository(db_session)
+
+        class FakeTokenVault:
+            def __init__(self):
+                self.deleted: list[tuple[object, str]] = []
+
+            def save_token(self, settings_id, _refresh_token):
+                return f"keychain://ai-bookkeeper/outlook-refresh-token/settings-{settings_id}"
+
+            def load_token(self, _settings_id, stored_value):
+                return stored_value
+
+            def delete_token(self, settings_id, stored_value):
+                self.deleted.append((settings_id, stored_value))
+
+            def is_keychain_reference(self, stored_value):
+                return stored_value.startswith("keychain://")
+
+        fake_vault = FakeTokenVault()
+        repo._token_vault = fake_vault
+
+        connected = Settings.create()
+        connected.set_outlook_configured(True, "refresh-token-value")
+        repo.save(connected)
+
+        disconnected = Settings.create()
+        disconnected.id = connected.id
+        disconnected.set_outlook_configured(False, "")
+        repo.save(disconnected)
+
+        stored = db_session.query(SettingsModel).first()
+        assert stored is not None
+        assert stored.outlook_configured is False
+        assert stored.outlook_refresh_token == ""
+        assert fake_vault.deleted == [
+            (
+                connected.id,
+                f"keychain://ai-bookkeeper/outlook-refresh-token/settings-{connected.id}",
+            )
+        ]

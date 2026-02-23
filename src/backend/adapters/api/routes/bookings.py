@@ -28,7 +28,8 @@ def list_bookings(
     date_to: Annotated[str | None, Query(description="Date to (ISO)")] = None,
     sort_by: Annotated[str, Query(description="Sort field")] = "created_at",
     descending: Annotated[bool, Query(description="Sort descending")] = True,
-    use_case: Annotated[ListBookingsUseCase, Depends(get_list_bookings_use_case)] = ...,
+    *,
+    use_case: Annotated[ListBookingsUseCase, Depends(get_list_bookings_use_case)],
 ) -> ListBookingsResponse:
     """List bookings with filtering and sorting."""
     # Map query params to DTO
@@ -67,7 +68,9 @@ def list_bookings(
 @router.get("/{bl_reference}", response_model=BookingDetailResponse, status_code=200)
 def get_booking_detail(
     bl_reference: str,
-    use_case: Annotated[ViewBookingDetailUseCase, Depends(get_view_booking_detail_use_case)] = ...,
+    use_case: Annotated[
+        ViewBookingDetailUseCase, Depends(get_view_booking_detail_use_case)
+    ],
 ) -> BookingDetailResponse:
     """Get complete booking details by BL reference."""
     # Execute use case

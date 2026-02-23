@@ -31,3 +31,20 @@ class ListDocumentsRequest:
 
     status: str | None = None
     limit: int = 100
+
+
+@dataclass(frozen=True)
+class FetchEmailsRequest:
+    """Request to fetch Outlook emails with PDF attachments."""
+
+    max_messages: int = 25
+
+
+@dataclass(frozen=True)
+class FetchEmailsResponse:
+    """Summary result for an email fetch operation."""
+
+    scanned_messages: int
+    pdf_attachments_found: int
+    imported_documents: int
+    duplicate_documents: int

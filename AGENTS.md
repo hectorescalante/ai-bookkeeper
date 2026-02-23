@@ -8,7 +8,7 @@ It detects invoices, extracts data with AI, groups revenue/costs per booking, an
 - **Frontend**: Tauri + Vue 3 + PrimeVue + Tailwind CSS
 - **Backend**: Python (FastAPI REST API)
 - **Database**: SQLite
-- **AI**: Anthropic Claude Sonnet 4.5 API
+- **AI**: Google Gemini 3 Pro API
 - **Storage**: iCloud Drive for PDFs and reports
 
 ## Repo Layout

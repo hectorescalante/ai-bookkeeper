@@ -41,7 +41,7 @@ This plan outlines delivery phases, key milestones, and scope boundaries for AI 
 **Objective:** Extract structured invoice data with human review.
 
 **Milestones**
-- Claude extraction (text + scanned PDFs)
+- Gemini 3 extraction (text + scanned PDFs)
 - Extraction preview (editable fields + raw JSON)
 - Validation rules and error handling (currency, missing fields)
 - Manual correction tracking
@@ -94,7 +94,7 @@ This plan outlines delivery phases, key milestones, and scope boundaries for AI 
 - **Data integrity** → domain invariants + repository tests
 
 ## Dependencies
-- Anthropic API key (Claude Sonnet 4.5)
+- Gemini API key (Gemini 3 Pro)
 - Microsoft Graph OAuth app registration
 - iCloud Drive availability (with fallback)
 

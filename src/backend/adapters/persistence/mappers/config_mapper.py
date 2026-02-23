@@ -52,7 +52,7 @@ def settings_to_model(settings: Settings) -> SettingsModel:
     """Convert Settings entity to SettingsModel ORM."""
     return SettingsModel(
         id=settings.id,
-        anthropic_api_key=settings.anthropic_api_key,
+        gemini_api_key=settings.gemini_api_key,
         outlook_configured=settings.outlook_configured,
         outlook_refresh_token=settings.outlook_refresh_token,
         default_export_path=settings.default_export_path,
@@ -64,7 +64,7 @@ def model_to_settings(model: SettingsModel) -> Settings:
     """Convert SettingsModel ORM to Settings entity."""
     return Settings(
         id=model.id,
-        anthropic_api_key=model.anthropic_api_key,
+        gemini_api_key=model.gemini_api_key,
         outlook_configured=model.outlook_configured,
         outlook_refresh_token=model.outlook_refresh_token,
         default_export_path=model.default_export_path,

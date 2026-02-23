@@ -13,7 +13,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "sqlalchemy>=2.0.0",
     "alembic>=1.14.0",
-    "anthropic>=0.40.0",
+    "google-genai>=1.0.0",
     "pypdf>=5.0.0",
     "openpyxl>=3.1.0",
     "httpx>=0.28.0",
@@ -78,7 +78,7 @@ no_implicit_optional = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["anthropic.*", "msal.*", "openpyxl.*"]
+module = ["google.genai.*", "msal.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

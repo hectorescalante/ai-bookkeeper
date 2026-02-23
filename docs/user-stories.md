@@ -55,32 +55,32 @@
 
 ---
 
-## EPIC 3 – AI Invoice Processing (Claude Sonnet 4.5)
+## EPIC 3 – AI Invoice Processing (Gemini 3 Pro)
 
-### HU-IA1 – Configure Anthropic API Key
+### HU-IA1 – Configure Gemini API Key
 **As** a commercial agent  
-**I want** to enter my Anthropic key (Claude Sonnet 4.5)  
+**I want** to enter my Google key (Gemini 3 Pro)  
 **So that** the application can process invoices with AI
 
 **Acceptance Criteria:**
-- Configuration screen has a field for the Anthropic API key
+- Configuration screen has a field for the Gemini API key
 - User can click "Test connection" and the app:
-  - Makes a test request to Claude Sonnet 4.5
+  - Makes a test request to Gemini 3 Pro
   - Shows "Valid connection" if successful
 - The key is stored in the local SQLite database
 - If the key is invalid, the app shows a clear error and blocks the AI module
 
 ### HU-IA2 – Process PDF with AI (Text or Images)
 **As** a commercial agent  
-**I want** the app to process PDF invoices (even scanned ones) using Claude Sonnet 4.5  
+**I want** the app to process PDF invoices (even scanned ones) using Gemini 3 Pro  
 **So that** I automatically get relevant data without manual transcription
 
 **Acceptance Criteria:**
 - When selecting a pending PDF and clicking "Process", the app:
   - Extracts text from PDF using pypdf (if digital)
-  - Or sends PDF images directly to Claude Sonnet 4.5 (if scanned, no local OCR)
+  - Or sends PDF images directly to Gemini 3 Pro (if scanned, no local OCR)
 - **Limits:** Max 20MB file size, max 50 pages per PDF
-- Claude Sonnet 4.5 returns a structured JSON with main fields:
+- Gemini 3 Pro returns a structured JSON with main fields:
   - Invoice type
   - Booking
   - Client
@@ -143,7 +143,7 @@
 **So that** I can review it manually before saving
 
 **Acceptance Criteria:**
-- If Claude Sonnet 4.5 cannot determine a field:
+- If Gemini 3 Pro cannot determine a field:
   - Marks it as "not found" or "ambiguous"
 - User can manually edit fields before saving to the database
 - The app must record in history which values were manually edited
@@ -154,7 +154,7 @@
 **So that** I can take manual action or retry processing
 
 **Acceptance Criteria:**
-- If the call to Claude Sonnet 4.5 fails (network, token, or timeout), the app:
+- If the call to Gemini 3 Pro fails (network, token, or timeout), the app:
   - Shows a clear message: "Could not process with AI"
   - Moves the document to the "With error" section
 - User can click "Retry with AI"
@@ -162,13 +162,13 @@
 
 ### HU-IA7 – Reprocess an Already Processed Document
 **As** a commercial agent  
-**I want** to reprocess an invoice with Claude Sonnet 4.5 when there's a model improvement or prompt adjustment  
+**I want** to reprocess an invoice with Gemini 3 Pro when there's a model improvement or prompt adjustment  
 **So that** I can correct previously poorly extracted data
 
 **Acceptance Criteria:**
 - "Reprocess with AI" button available on processed invoices
 - Reprocessing must:
-  - Re-send the PDF to Sonnet 4.5
+  - Re-send the PDF to Gemini 3 Pro
   - Replace old data
   - Record the new processing date
 

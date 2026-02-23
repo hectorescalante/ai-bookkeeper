@@ -11,17 +11,15 @@ from backend.domain.value_objects import BookingCharge, ClientInfo, Money
 
 
 @pytest.fixture
-def sample_bookings(db_session):
+def _sample_bookings(db_session):
     """Create sample bookings for testing."""
+    from datetime import datetime
     from uuid import uuid4
 
     from backend.adapters.persistence.models.party import ClientModel
     from backend.adapters.persistence.repositories.booking_repository import (
         SqlAlchemyBookingRepository,
     )
-
-    # First, create clients in the database
-    from datetime import datetime
 
     client_id1 = uuid4()
     client_id2 = uuid4()
@@ -91,7 +89,7 @@ def sample_bookings(db_session):
     return [booking1, booking2]
 
 
-def test_list_all_bookings(client: TestClient, sample_bookings) -> None:
+def test_list_all_bookings(client: TestClient, _sample_bookings) -> None:
     """Test GET /api/bookings."""
     response = client.get("/api/bookings")
 
@@ -103,7 +101,7 @@ def test_list_all_bookings(client: TestClient, sample_bookings) -> None:
     assert len(data["bookings"]) == 2
 
 
-def test_list_bookings_by_status(client: TestClient, sample_bookings) -> None:
+def test_list_bookings_by_status(client: TestClient, _sample_bookings) -> None:
     """Test GET /api/bookings with status filter."""
     response = client.get("/api/bookings?status=PENDING")
 
@@ -113,7 +111,9 @@ def test_list_bookings_by_status(client: TestClient, sample_bookings) -> None:
     assert all(b["status"] == "PENDING" for b in data["bookings"])
 
 
-def test_booking_list_includes_financial_summary(client: TestClient, sample_bookings) -> None:
+def test_booking_list_includes_financial_summary(
+    client: TestClient, _sample_bookings
+) -> None:
     """Test that booking list includes financial calculations."""
     response = client.get("/api/bookings")
 
@@ -130,7 +130,7 @@ def test_booking_list_includes_financial_summary(client: TestClient, sample_book
     assert booking["document_count"] == 2  # 1 revenue + 1 cost
 
 
-def test_get_booking_detail(client: TestClient, sample_bookings) -> None:
+def test_get_booking_detail(client: TestClient, _sample_bookings) -> None:
     """Test GET /api/bookings/{bl_reference}."""
     response = client.get("/api/bookings/BL-2024-001")
 
@@ -154,7 +154,7 @@ def test_get_booking_detail_not_found(client: TestClient) -> None:
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_list_bookings_sorting(client: TestClient, sample_bookings) -> None:
+def test_list_bookings_sorting(client: TestClient, _sample_bookings) -> None:
     """Test booking list sorting."""
     # Sort by created_at ascending
     response = client.get("/api/bookings?sort_by=created_at&descending=false")
@@ -165,7 +165,7 @@ def test_list_bookings_sorting(client: TestClient, sample_bookings) -> None:
     assert data["bookings"][0]["id"] == "BL-2024-001"
 
 
-def test_booking_margin_percentage(client: TestClient, sample_bookings) -> None:
+def test_booking_margin_percentage(client: TestClient, _sample_bookings) -> None:
     """Test margin percentage calculation in booking detail."""
     response = client.get("/api/bookings/BL-2024-001")
 

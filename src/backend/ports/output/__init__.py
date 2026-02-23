@@ -1,5 +1,12 @@
 """Output ports - repository and external service interfaces."""
-
+from backend.ports.output.email_client import (
+    EmailAttachment,
+    EmailAuthError,
+    EmailClient,
+    EmailClientError,
+    EmailMessage,
+    EmailRateLimitError,
+)
 from backend.ports.output.repositories import (
     AgentRepository,
     BookingFilters,
@@ -16,6 +23,12 @@ from backend.ports.output.repositories import (
 
 __all__ = [
     "AgentRepository",
+    "EmailAttachment",
+    "EmailAuthError",
+    "EmailClient",
+    "EmailClientError",
+    "EmailMessage",
+    "EmailRateLimitError",
     "BookingFilters",
     "BookingRepository",
     "BookingSort",

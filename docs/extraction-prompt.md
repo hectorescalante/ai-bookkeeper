@@ -1,6 +1,6 @@
 # Invoice Extraction Prompt
 
-This is the default prompt template used by Claude Sonnet 4.5 to extract data from invoice PDFs.
+This is the default prompt template used by Gemini 3 Pro to extract data from invoice PDFs.
 Users can customize this prompt in **Settings → AI Prompt**.
 
 ---

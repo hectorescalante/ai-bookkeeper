@@ -20,8 +20,8 @@ class ConfigureSettingsUseCase:
             settings = Settings.create()
 
         # Update fields if provided
-        if request.anthropic_api_key is not None:
-            settings.set_api_key(request.anthropic_api_key)
+        if request.gemini_api_key is not None:
+            settings.set_api_key(request.gemini_api_key)
 
         if request.default_export_path is not None:
             settings.default_export_path = request.default_export_path

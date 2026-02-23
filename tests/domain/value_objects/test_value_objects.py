@@ -193,10 +193,10 @@ class TestExtractionMetadata:
     def test_create_extraction_metadata(self) -> None:
         """Test creating ExtractionMetadata."""
         meta = ExtractionMetadata(
-            ai_model="claude-sonnet-4-5-20250514",
+            ai_model="gemini-3-pro",
             overall_confidence=ConfidenceLevel.HIGH,
         )
-        assert meta.ai_model == "claude-sonnet-4-5-20250514"
+        assert meta.ai_model == "gemini-3-pro"
         assert meta.overall_confidence == ConfidenceLevel.HIGH
 
     def test_extraction_metadata_with_field_confidences(self) -> None:
@@ -206,7 +206,7 @@ class TestExtractionMetadata:
             FieldConfidence(field_name="total", confidence=ConfidenceLevel.MEDIUM),
         )
         meta = ExtractionMetadata(
-            ai_model="claude-sonnet-4-5-20250514",
+            ai_model="gemini-3-pro",
             overall_confidence=ConfidenceLevel.MEDIUM,
             field_confidences=field_confidences,
         )
@@ -218,7 +218,7 @@ class TestExtractionMetadata:
     def test_overall_confidence_percentage(self) -> None:
         """Test overall confidence as percentage."""
         meta = ExtractionMetadata(
-            ai_model="claude-sonnet-4-5-20250514",
+            ai_model="gemini-3-pro",
             overall_confidence=ConfidenceLevel.HIGH,
         )
         # HIGH = 100%, MEDIUM = 70%, LOW = 40%
@@ -227,7 +227,7 @@ class TestExtractionMetadata:
     def test_manually_edited_fields(self) -> None:
         """Test tracking manually edited fields."""
         meta = ExtractionMetadata(
-            ai_model="claude-sonnet-4-5-20250514",
+            ai_model="gemini-3-pro",
             overall_confidence=ConfidenceLevel.HIGH,
             manually_edited_fields=("invoice_number", "total"),
         )

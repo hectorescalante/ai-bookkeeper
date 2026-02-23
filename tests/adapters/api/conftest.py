@@ -6,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from backend.adapters.persistence.database import Base, get_db
+
 # Import models FIRST to register with Base.metadata
 from backend.adapters.persistence.models import (  # noqa: F401
     AgentModel,
@@ -14,11 +16,11 @@ from backend.adapters.persistence.models import (  # noqa: F401
     ClientModel,
     CompanyModel,
     DocumentModel,
+    OutlookOAuthStateModel,
     ProviderInvoiceModel,
     ProviderModel,
     SettingsModel,
 )
-from backend.adapters.persistence.database import Base, get_db
 from backend.main import app
 
 

@@ -5,9 +5,12 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.application.dtos.document_dtos import FetchEmailsResponse as FetchEmailsResponseDto
+from backend.config.dependencies import get_fetch_emails_use_case
 from backend.domain.entities.document import Document
-from backend.domain.enums import DocumentType, ProcessingStatus
+from backend.domain.enums import DocumentType
 from backend.domain.value_objects import EmailReference, FileHash
+from backend.main import app
 
 
 @pytest.fixture
@@ -43,6 +46,7 @@ def sample_documents(db_session):
 
 def test_list_all_documents(client: TestClient, sample_documents) -> None:
     """Test GET /api/documents without filters."""
+    _ = sample_documents
     response = client.get("/api/documents")
 
     assert response.status_code == 200
@@ -55,6 +59,7 @@ def test_list_all_documents(client: TestClient, sample_documents) -> None:
 
 def test_list_documents_by_status(client: TestClient, sample_documents) -> None:
     """Test GET /api/documents with status filter."""
+    _ = sample_documents
     response = client.get("/api/documents?status=PENDING")
 
     assert response.status_code == 200
@@ -66,6 +71,7 @@ def test_list_documents_by_status(client: TestClient, sample_documents) -> None:
 
 def test_list_documents_with_limit(client: TestClient, sample_documents) -> None:
     """Test GET /api/documents with limit."""
+    _ = sample_documents
     response = client.get("/api/documents?limit=1")
 
     assert response.status_code == 200
@@ -83,6 +89,7 @@ def test_list_documents_invalid_status(client: TestClient) -> None:
 
 def test_document_list_includes_email_info(client: TestClient, sample_documents) -> None:
     """Test that document list includes email information."""
+    _ = sample_documents
     response = client.get("/api/documents?status=PENDING")
 
     assert response.status_code == 200
@@ -94,6 +101,7 @@ def test_document_list_includes_email_info(client: TestClient, sample_documents)
 
 def test_list_processed_documents(client: TestClient, sample_documents) -> None:
     """Test listing processed documents."""
+    _ = sample_documents
     response = client.get("/api/documents?status=PROCESSED")
 
     assert response.status_code == 200
@@ -101,3 +109,54 @@ def test_list_processed_documents(client: TestClient, sample_documents) -> None:
     assert data["total"] == 1
     assert data["documents"][0]["status"] == "PROCESSED"
     assert data["documents"][0]["document_type"] == "CLIENT_INVOICE"
+
+
+class _StubFetchEmailsUseCase:
+    def __init__(
+        self,
+        response: FetchEmailsResponseDto | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self._response = response
+        self._error = error
+
+    def execute(self, _request):  # noqa: ANN001
+        if self._error is not None:
+            raise self._error
+        assert self._response is not None
+        return self._response
+
+
+def test_fetch_emails_endpoint_success(client: TestClient) -> None:
+    app.dependency_overrides[get_fetch_emails_use_case] = lambda: _StubFetchEmailsUseCase(
+        response=FetchEmailsResponseDto(
+            scanned_messages=3,
+            pdf_attachments_found=5,
+            imported_documents=4,
+            duplicate_documents=1,
+        )
+    )
+    try:
+        response = client.post("/api/documents/fetch", json={"max_messages": 20})
+    finally:
+        app.dependency_overrides.pop(get_fetch_emails_use_case, None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scanned_messages"] == 3
+    assert payload["pdf_attachments_found"] == 5
+    assert payload["imported_documents"] == 4
+    assert payload["duplicate_documents"] == 1
+
+
+def test_fetch_emails_endpoint_outlook_not_connected(client: TestClient) -> None:
+    app.dependency_overrides[get_fetch_emails_use_case] = lambda: _StubFetchEmailsUseCase(
+        error=ValueError("Outlook is not connected. Configure Outlook in Settings first.")
+    )
+    try:
+        response = client.post("/api/documents/fetch", json={"max_messages": 20})
+    finally:
+        app.dependency_overrides.pop(get_fetch_emails_use_case, None)
+
+    assert response.status_code == 400
+    assert "Outlook is not connected" in response.json()["detail"]

@@ -27,7 +27,7 @@ class CompanyResponse(BaseModel):
 class SettingsRequest(BaseModel):
     """Request to configure settings."""
 
-    anthropic_api_key: str | None = Field(None, description="Anthropic API key for AI extraction")
+    gemini_api_key: str | None = Field(None, description="Google Gemini API key for AI extraction")
     default_export_path: str | None = Field(None, description="Default export path for reports")
     extraction_prompt: str | None = Field(None, description="AI extraction prompt")
 

@@ -76,7 +76,7 @@ def configure_settings(
     """Configure or update application settings."""
     # Map Pydantic to DTO
     dto_request = ConfigureSettingsRequest(
-        anthropic_api_key=request.anthropic_api_key,
+        gemini_api_key=request.gemini_api_key,
         default_export_path=request.default_export_path,
         extraction_prompt=request.extraction_prompt,
     )

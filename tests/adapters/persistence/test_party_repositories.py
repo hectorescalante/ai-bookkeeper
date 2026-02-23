@@ -1,7 +1,5 @@
 """Integration tests for Client and Provider repositories."""
 
-from uuid import uuid4
-
 import pytest
 from sqlalchemy.exc import IntegrityError
 

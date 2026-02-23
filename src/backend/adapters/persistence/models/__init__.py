@@ -7,6 +7,7 @@ from backend.adapters.persistence.models.booking import BookingModel
 from backend.adapters.persistence.models.configuration import (
     AgentModel,
     CompanyModel,
+    OutlookOAuthStateModel,
     SettingsModel,
 )
 from backend.adapters.persistence.models.document import DocumentModel
@@ -20,6 +21,7 @@ __all__ = [
     "ClientModel",
     "CompanyModel",
     "DocumentModel",
+    "OutlookOAuthStateModel",
     "ProviderInvoiceModel",
     "ProviderModel",
     "SettingsModel",

@@ -26,7 +26,7 @@ For the business domain model (entities, value objects, business rules), see [ap
 - **pnpm** — Package manager
 
 ### AI & External Services
-- **Anthropic Claude Sonnet 4.5** — Invoice data extraction (direct API)
+- **Google Gemini 3 Pro** — Invoice data extraction (direct API)
 - **Microsoft Graph API** — Outlook email access (OAuth2)
 
 ### Development & Quality
@@ -80,7 +80,7 @@ For the business domain model (entities, value objects, business rules), see [ap
                                │
          ┌─────────────────────┴─────────────────────┐
          │            DRIVEN ADAPTERS                │
-         │  SQLite │ Anthropic │ Outlook │ iCloud    │
+         │  SQLite │ Google │ Outlook │ iCloud    │
          │  Excel  │ PDF                             │
          └───────────────────────────────────────────┘
 ```
@@ -95,11 +95,11 @@ Adapters implement the ports defined in [application.md](application.md).
 Concrete implementations of output ports.
 
 - **SQLite Adapter** — All repositories use local SQLite database (Alembic migrations)
-- **Anthropic Adapter** — Claude Sonnet 4.5 API integration (direct Anthropic API)
+- **Google Adapter** — Gemini 3 Pro API integration (direct Gemini API)
 - **Outlook Adapter** — Microsoft Graph API with OAuth2 user consent (see OAuth2 details below)
 - **iCloud Adapter** — Local filesystem in iCloud Drive folder (manual cleanup, user responsibility)
 - **Excel Adapter** — Generate .xlsx files using openpyxl
-- **PDF Adapter** — pypdf for text extraction; scanned PDFs sent as images directly to Claude
+- **PDF Adapter** — pypdf for text extraction; scanned PDFs sent as images directly to Gemini 3
 
 #### PDF Processing Limits
 - **Max file size**: 20 MB
@@ -175,7 +175,7 @@ Local development with hot reload and debugging.
 | **Frontend** | Vite dev server with HMR (`localhost:5173`) |
 | **Backend** | Python with auto-reload (`localhost:8000`) |
 | **Database** | SQLite file in project: `data/dev.db` |
-| **AI API** | Real Claude API (dev key) or mock responses |
+| **AI API** | Real Gemini 3 API (dev key) or mock responses |
 | **Outlook** | Mock email client (no real OAuth) |
 | **File Storage** | Local temp folder: `data/pdfs/` |
 | **Logging** | DEBUG level, console output |
@@ -193,7 +193,7 @@ Pre-release testing with real integrations. Distributed to beta testers.
 |-----------|---------------|
 | **App** | Signed build, not notarized |
 | **Database** | SQLite in user data folder |
-| **AI API** | Real Claude API (staging key) |
+| **AI API** | Real Gemini 3 API (staging key) |
 | **Outlook** | Real OAuth (test account) |
 | **File Storage** | iCloud Drive staging folder |
 | **Logging** | INFO level, file output |
@@ -211,7 +211,7 @@ Released application for end users.
 |-----------|---------------|
 || **App** | Unsigned build (single customer distribution) |
 | **Database** | SQLite: `~/Library/Application Support/AIBookkeeper/data.db` |
-| **AI API** | User's own Anthropic API key |
+| **AI API** | User's own Gemini API key |
 | **Outlook** | Real OAuth (user's account) |
 | **File Storage** | iCloud Drive: `~/Library/Mobile Documents/com~apple~CloudDocs/AIBookkeeper/` |
 | **Logging** | INFO level (DEBUG disabled), file output |
@@ -287,7 +287,7 @@ Robust logging for troubleshooting issues on user machines.
 
 ### What to Log
 - Use case start/end with duration
-- External API calls (Outlook, Claude) with status codes
+- External API calls (Outlook, Gemini 3) with status codes
 - Document status transitions
 - Validation errors with field names
 - Database operations (without data)
@@ -359,7 +359,7 @@ zip -r AIBookkeeper-v1.0.0.zip target/release/bundle/macos/AIBookkeeper.app
 
 ## Security Considerations
 
-- **API Keys**: Anthropic API key stored in SQLite database (Settings table). Stored as plaintext but protected by:
+- **API Keys**: Gemini API key stored in SQLite database (Settings table). Stored as plaintext but protected by:
   - Database file is local-only in `~/Library/Application Support/AIBookkeeper/`
   - Standard macOS file permissions (user-only read/write)
   - App sandbox (when distributed via notarized build)
@@ -369,7 +369,7 @@ zip -r AIBookkeeper-v1.0.0.zip target/release/bundle/macos/AIBookkeeper.app
 - **Human Approval**: No automatic persistence without user confirmation
 - **Audit Trail**: Domain events provide full traceability
 - **Logs**: No sensitive data in logs; diagnostic bundle excludes business data
-- **PDF Content**: Invoice PDFs stored locally in iCloud Drive; no cloud processing except Claude API calls
+- **PDF Content**: Invoice PDFs stored locally in iCloud Drive; no cloud processing except Gemini 3 API calls
 
 ## Out of Scope
 

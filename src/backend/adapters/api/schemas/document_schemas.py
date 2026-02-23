@@ -37,3 +37,23 @@ class ListDocumentsParams(BaseModel):
 
     status: str | None = Field(None, description="Filter by status (PENDING, PROCESSING, etc.)")
     limit: int = Field(100, ge=1, le=500, description="Maximum number of documents to return")
+
+
+class FetchEmailsRequest(BaseModel):
+    """Request payload for fetching Outlook emails."""
+
+    max_messages: int = Field(
+        25,
+        ge=1,
+        le=100,
+        description="Maximum unread messages to scan in Outlook inbox",
+    )
+
+
+class FetchEmailsResponse(BaseModel):
+    """Summary response for a fetch emails operation."""
+
+    scanned_messages: int
+    pdf_attachments_found: int
+    imported_documents: int
+    duplicate_documents: int

@@ -441,17 +441,17 @@ class TestSettings:
     def test_settings_set_api_key(self) -> None:
         """Test setting API key."""
         settings = Settings.create()
-        settings.set_api_key("sk-ant-test-key")
+        settings.set_api_key("test-gemini-key")
         assert settings.has_api_key
-        assert settings.anthropic_api_key == "sk-ant-test-key"
+        assert settings.gemini_api_key == "test-gemini-key"
 
     def test_settings_clear_api_key(self) -> None:
         """Test clearing API key."""
         settings = Settings.create()
-        settings.set_api_key("sk-ant-test-key")
+        settings.set_api_key("test-gemini-key")
         settings.clear_api_key()
         assert not settings.has_api_key
-        assert settings.anthropic_api_key == ""
+        assert settings.gemini_api_key == ""
 
     def test_settings_outlook_connection(self) -> None:
         """Test Outlook connection settings."""

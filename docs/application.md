@@ -56,7 +56,7 @@ Use cases orchestrate domain entities to fulfill user stories. Each use case map
 
 | Use Case | Description | User Stories |
 |----------|-------------|--------------|
-| **ConfigureAPIKey** | Set Anthropic API key, test connection | HU-IA1 |
+| **ConfigureAPIKey** | Set Gemini API key, test connection | HU-IA1 |
 | **ConfigureCompany** | Set company NIF (for invoice classification) and commission rate | HU5.1 |
 | **ConfigureAgent** | Set agent profile (name, email, phone) | HU5.2 |
 | **ConfigurePrompt** | Edit AI extraction prompt template with validation | — |
@@ -92,7 +92,7 @@ Interfaces that define what the application can do. Grouped by domain area.
 - **ExportBooking** — Export single booking detail to Excel
 
 **Configuration:**
-- **ConfigureAPIKey** — Set Anthropic API key, test connection
+- **ConfigureAPIKey** — Set Gemini API key, test connection
 - **ConfigureCompany** — Set company NIF and commission rate
 - **ConfigureAgent** — Set agent profile
 - **ConfigurePrompt** — Edit AI extraction prompt template
@@ -111,7 +111,7 @@ Interfaces that the domain needs from the outside world.
 - **SettingsRepository** — Application settings
 
 **External Services:**
-- **AIExtractor** — Send PDF to Claude, receive structured data
+- **AIExtractor** — Send PDF to Gemini 3, receive structured data
 - **EmailClient** — Fetch emails from Outlook
 - **FileStorage** — Store/retrieve PDFs (iCloud Drive)
 - **ReportGenerator** — Generate Excel files
@@ -192,7 +192,7 @@ PDF processing flow:
 
 1. **Text extraction attempt**: Use pypdf to extract text
 2. **Detection criteria**: If extracted text is < 100 characters or contains mostly gibberish (high ratio of non-alphanumeric characters), PDF is considered scanned
-3. **Scanned handling**: Convert each page to PNG (300 DPI, RGB) and send as images to Claude
+3. **Scanned handling**: Convert each page to PNG (300 DPI, RGB) and send as images to Gemini 3
 4. **Hybrid PDFs**: Some pages text, some scanned — extract text where available, send images for scanned pages
 5. **Page limit**: Max 50 pages; if exceeded, reject with error before sending to AI
 
@@ -216,7 +216,7 @@ When user selects multiple documents and clicks "Process Selected":
 
 When user edits the extraction prompt in Settings:
 
-1. **Schema validation**: Before saving, the app sends a test request to Claude with a sample PDF
+1. **Schema validation**: Before saving, the app sends a test request to Gemini 3 with a sample PDF
 2. **Response validation**: The response must:
    - Be valid JSON
    - Contain required top-level fields: `document_type`, `invoice`
@@ -227,7 +227,7 @@ When user edits the extraction prompt in Settings:
 4. **Test PDF**: A built-in sample invoice PDF is used for validation (not user documents)
 5. **Reset option**: "Reset to Default" restores the original prompt template
 
-*Note: Validation uses a real Claude API call, so requires valid API key.*
+*Note: Validation uses a real Gemini 3 API call, so requires valid API key.*
 
 ---
 
@@ -289,8 +289,8 @@ When user edits the extraction prompt in Settings:
 - `name`, `email`, `phone`
 
 ### Settings (Singleton)
-- `anthropic_api_key`, `outlook_configured`, `default_export_path`
-- `extraction_prompt` — User-editable prompt template for Claude invoice extraction
+- `gemini_api_key`, `outlook_configured`, `default_export_path`
+- `extraction_prompt` — User-editable prompt template for Gemini 3 invoice extraction
 
 ---
 
@@ -361,16 +361,16 @@ These errors block operations and require user action:
 | Error | When | User Action |
 |-------|------|-------------|
 | **NIF_NOT_CONFIGURED** | ProcessInvoice called without company NIF | Modal: "Configure company NIF in Settings before processing invoices" |
-| **API_KEY_MISSING** | ProcessInvoice called without Anthropic API key | Modal: "Configure API key in Settings" |
-| **API_KEY_INVALID** | Claude returns 401 Unauthorized | Toast error + redirect to Settings, API key field highlighted |
+| **API_KEY_MISSING** | ProcessInvoice called without Gemini API key | Modal: "Configure API key in Settings" |
+| **API_KEY_INVALID** | Gemini 3 returns 401 Unauthorized | Toast error + redirect to Settings, API key field highlighted |
 | **OUTLOOK_DISCONNECTED** | FetchEmails called with invalid/expired OAuth | Toast: "Outlook disconnected" + Settings shows reconnect button |
 
 ### Runtime Errors
 
 | Error | When | Behavior |
 |-------|------|----------|
-| **AI_TIMEOUT** | Claude API call exceeds 60s | Document → ERROR, retryable=true |
-| **AI_RATE_LIMIT** | Claude returns 429 | Document → ERROR, show "Try again in X minutes", retryable=true |
+| **AI_TIMEOUT** | Gemini 3 API call exceeds 60s | Document → ERROR, retryable=true |
+| **AI_RATE_LIMIT** | Gemini 3 returns 429 | Document → ERROR, show "Try again in X minutes", retryable=true |
 | **FILE_TOO_LARGE** | PDF > 20MB | Document → ERROR, retryable=false, message shows limit |
 | **TOO_MANY_PAGES** | PDF > 50 pages | Document → ERROR, retryable=false |
 | **DISK_FULL** | Cannot save PDF to iCloud | Toast error: "Disk full. Free up space and retry." Document stays PENDING |

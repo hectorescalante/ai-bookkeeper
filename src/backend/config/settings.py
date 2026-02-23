@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite:///data/ai_bookkeeper.db"
 
-    # Anthropic API (optional - can be configured via UI)
-    anthropic_api_key: str | None = None
+    # Gemini API (optional - can be configured via UI)
+    gemini_api_key: str | None = None
 
     # Azure AD (for Outlook integration)
     azure_client_id: str | None = None

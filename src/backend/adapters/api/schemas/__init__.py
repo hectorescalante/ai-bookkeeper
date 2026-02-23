@@ -14,6 +14,8 @@ from backend.adapters.api.schemas.config_schemas import (
 )
 from backend.adapters.api.schemas.document_schemas import (
     DocumentListItem,
+    FetchEmailsRequest,
+    FetchEmailsResponse,
     ListDocumentsParams,
     ListDocumentsResponse,
 )
@@ -26,6 +28,8 @@ __all__ = [
     "SettingsResponse",
     # Documents
     "DocumentListItem",
+    "FetchEmailsRequest",
+    "FetchEmailsResponse",
     "ListDocumentsParams",
     "ListDocumentsResponse",
     # Bookings
