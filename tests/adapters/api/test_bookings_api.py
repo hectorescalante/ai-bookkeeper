@@ -1,9 +1,11 @@
 """Integration tests for bookings API endpoints."""
 
 from decimal import Decimal
+from io import BytesIO
 
 import pytest
 from fastapi.testclient import TestClient
+from openpyxl import load_workbook
 
 from backend.domain.entities.booking import Booking
 from backend.domain.enums import ChargeCategory, ProviderType
@@ -173,3 +175,57 @@ def test_booking_margin_percentage(client: TestClient, _sample_bookings) -> None
     data = response.json()
     # Margin: 400, Revenue: 1000 → 40%
     assert Decimal(data["margin_percentage"]) == Decimal("40.00")
+
+
+def test_mark_booking_complete_and_revert(client: TestClient, _sample_bookings) -> None:
+    """Test booking completion and revert lifecycle endpoints."""
+    complete_response = client.post("/api/bookings/BL-2024-001/complete")
+    assert complete_response.status_code == 200
+    assert complete_response.json()["status"] == "COMPLETE"
+
+    revert_response = client.post("/api/bookings/BL-2024-001/revert")
+    assert revert_response.status_code == 200
+    assert revert_response.json()["status"] == "PENDING"
+
+
+def test_edit_booking_updates_shipping_fields(client: TestClient, _sample_bookings) -> None:
+    """Test PATCH /api/bookings/{id} updates editable shipping fields."""
+    response = client.patch(
+        "/api/bookings/BL-2024-001",
+        json={
+            "vessel": "MSC NEW VESSEL",
+            "containers": ["CONT001", "CONT002"],
+            "pol_code": "CNSHA",
+            "pol_name": "Shanghai",
+            "pod_code": "ESVLC",
+            "pod_name": "Valencia",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["vessel"] == "MSC NEW VESSEL"
+    assert payload["containers"] == ["CONT001", "CONT002"]
+    assert payload["pol_code"] == "CNSHA"
+    assert payload["pol_name"] == "Shanghai"
+    assert payload["pod_code"] == "ESVLC"
+    assert payload["pod_name"] == "Valencia"
+
+
+def test_export_booking_returns_excel_file(client: TestClient, _sample_bookings) -> None:
+    """Test GET /api/bookings/{id}/export returns XLSX attachment."""
+    response = client.get("/api/bookings/BL-2024-001/export")
+
+    assert response.status_code == 200
+    assert (
+        response.headers["content-type"]
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert "attachment;" in response.headers["content-disposition"]
+    assert "booking-BL-2024-001.xlsx" in response.headers["content-disposition"]
+
+    workbook = load_workbook(filename=BytesIO(response.content))
+    sheet = workbook.active
+    assert sheet is not None
+    assert sheet["A1"].value == "Booking ID"
+    assert sheet["B1"].value == "BL-2024-001"

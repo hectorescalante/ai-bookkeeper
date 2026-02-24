@@ -22,9 +22,14 @@ from backend.application.use_cases import (
     ConfigureCompanyUseCase,
     ConfigureSettingsUseCase,
     ConfirmInvoiceUseCase,
+    EditBookingUseCase,
+    ExportBookingUseCase,
     FetchEmailsUseCase,
+    GenerateCommissionReportUseCase,
+    GenerateExcelReportUseCase,
     ListBookingsUseCase,
     ListDocumentsUseCase,
+    MarkBookingCompleteUseCase,
     ViewBookingDetailUseCase,
 )
 from backend.application.use_cases.process_invoice import ProcessInvoiceUseCase
@@ -127,6 +132,31 @@ def get_view_booking_detail_use_case(
     return ViewBookingDetailUseCase(booking_repo, commission_rate)
 
 
+def get_edit_booking_use_case(
+    booking_repo: Annotated[BookingRepository, Depends(get_booking_repository)],
+) -> EditBookingUseCase:
+    """Get edit booking use case instance."""
+    return EditBookingUseCase(booking_repo)
+
+
+def get_mark_booking_complete_use_case(
+    booking_repo: Annotated[BookingRepository, Depends(get_booking_repository)],
+) -> MarkBookingCompleteUseCase:
+    """Get mark booking complete use case instance."""
+    return MarkBookingCompleteUseCase(booking_repo)
+
+
+def get_export_booking_use_case(
+    booking_repo: Annotated[BookingRepository, Depends(get_booking_repository)],
+    company_repo: Annotated[CompanyRepository, Depends(get_company_repository)],
+) -> ExportBookingUseCase:
+    """Get booking export use case instance."""
+    return ExportBookingUseCase(
+        booking_repo=booking_repo,
+        company_repo=company_repo,
+    )
+
+
 def get_ai_extractor(
     settings_repo: Annotated[SettingsRepository, Depends(get_settings_repository)],
 ) -> AIExtractor:
@@ -218,3 +248,23 @@ def get_confirm_invoice_use_case(
         client_repo=client_repo,
         provider_repo=provider_repo,
     )
+
+
+def get_generate_commission_report_use_case(
+    booking_repo: Annotated[BookingRepository, Depends(get_booking_repository)],
+    company_repo: Annotated[CompanyRepository, Depends(get_company_repository)],
+) -> GenerateCommissionReportUseCase:
+    """Get commission report use case instance."""
+    return GenerateCommissionReportUseCase(
+        booking_repo=booking_repo,
+        company_repo=company_repo,
+    )
+
+
+def get_generate_excel_report_use_case(
+    commission_use_case: Annotated[
+        GenerateCommissionReportUseCase, Depends(get_generate_commission_report_use_case)
+    ],
+) -> GenerateExcelReportUseCase:
+    """Get Excel report export use case instance."""
+    return GenerateExcelReportUseCase(commission_report_use_case=commission_use_case)

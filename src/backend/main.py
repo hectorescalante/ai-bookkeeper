@@ -4,7 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.adapters.api.exceptions import register_exception_handlers
-from backend.adapters.api.routes import bookings, config, documents, invoices, outlook
+from backend.adapters.api.routes import (
+    bookings,
+    config,
+    documents,
+    invoices,
+    outlook,
+    reports,
+)
 
 app = FastAPI(
     title="AI Bookkeeper",
@@ -30,6 +37,7 @@ app.include_router(documents.router)
 app.include_router(bookings.router)
 app.include_router(invoices.router)
 app.include_router(outlook.router)
+app.include_router(reports.router)
 
 
 @app.get("/health")

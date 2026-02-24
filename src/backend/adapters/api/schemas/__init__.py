@@ -19,6 +19,13 @@ from backend.adapters.api.schemas.document_schemas import (
     ListDocumentsParams,
     ListDocumentsResponse,
 )
+from backend.adapters.api.schemas.report_schemas import (
+    CommissionReportItem,
+    CommissionReportRequest,
+    CommissionReportResponse,
+    CommissionReportTotals,
+    ExportReportRequest,
+)
 
 __all__ = [
     # Config
@@ -32,6 +39,12 @@ __all__ = [
     "FetchEmailsResponse",
     "ListDocumentsParams",
     "ListDocumentsResponse",
+    # Reports
+    "CommissionReportItem",
+    "CommissionReportRequest",
+    "CommissionReportResponse",
+    "CommissionReportTotals",
+    "ExportReportRequest",
     # Bookings
     "BookingListItem",
     "ListBookingsParams",

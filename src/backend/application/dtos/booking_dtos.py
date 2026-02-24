@@ -64,3 +64,16 @@ class ListBookingsRequest:
     date_to: str | None = None
     sort_by: str = "created_at"
     descending: bool = True
+
+
+@dataclass(frozen=True)
+class EditBookingRequest:
+    """Request to edit mutable booking fields."""
+
+    bl_reference: str
+    vessel: str | None = None
+    containers: list[str] | None = None
+    pol_code: str | None = None
+    pol_name: str | None = None
+    pod_code: str | None = None
+    pod_name: str | None = None
