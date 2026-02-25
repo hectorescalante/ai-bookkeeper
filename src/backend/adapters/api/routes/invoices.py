@@ -1,5 +1,6 @@
 """Invoice processing API routes."""
 
+from datetime import date
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -80,7 +81,7 @@ class ConfirmDocumentRequest(BaseModel):
     manually_edited_fields: list[str] = Field(default_factory=list)
 
     invoice_number: str | None = None
-    invoice_date: str | None = None
+    invoice_date: date | None = None
     issuer_name: str | None = None
     issuer_nif: str | None = None
     recipient_name: str | None = None
@@ -173,7 +174,11 @@ def confirm_document(
             overall_confidence=request.overall_confidence,
             manually_edited_fields=request.manually_edited_fields,
             invoice_number=request.invoice_number,
-            invoice_date=request.invoice_date,
+            invoice_date=(
+                request.invoice_date.isoformat()
+                if request.invoice_date is not None
+                else None
+            ),
             issuer_name=request.issuer_name,
             issuer_nif=request.issuer_nif,
             recipient_name=request.recipient_name,
