@@ -48,7 +48,7 @@
             :disabled="processableDocumentIds.length === 0"
             @change="toggleSelectAllProcessable"
           />
-          Select all processable
+          Select all actionable
         </label>
       </div>
 
@@ -74,7 +74,7 @@
                 <input
                   type="checkbox"
                   :checked="selectedDocumentIds.includes(document.id)"
-                  :disabled="!isProcessable(document) || isProcessingCurrentDocument"
+                  :disabled="!isQueueEligible(document) || isProcessingCurrentDocument"
                   @change="toggleDocumentSelection(document.id)"
                 />
               </td>
@@ -459,7 +459,7 @@ const providerTypeOptions = PROVIDER_TYPE_OPTIONS;
 const chargeCategoryOptions = CHARGE_CATEGORY_OPTIONS;
 
 const processableDocumentIds = computed(() =>
-  documents.value.filter(isProcessable).map((document) => document.id)
+  documents.value.filter(isQueueEligible).map((document) => document.id)
 );
 
 const allProcessableSelected = computed(() => {
@@ -523,6 +523,9 @@ const isProcessable = (document: DocumentListItem): boolean =>
 
 const isReprocessable = (document: DocumentListItem): boolean =>
   document.status === "PROCESSED";
+
+const isQueueEligible = (document: DocumentListItem): boolean =>
+  isProcessable(document) || isReprocessable(document);
 
 const toggleDocumentSelection = (documentId: string): void => {
   if (selectedDocumentIds.value.includes(documentId)) {
@@ -703,7 +706,8 @@ const startBatchProcessing = async (): Promise<void> => {
     toast.add({
       severity: "warn",
       summary: "No processable documents selected",
-      detail: "Only documents in PENDING or ERROR status can be processed.",
+      detail:
+        "Only documents in PENDING, ERROR, or PROCESSED status can be processed.",
       life: 4000,
     });
     return;
