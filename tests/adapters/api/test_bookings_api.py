@@ -183,6 +183,45 @@ def test_list_bookings_sorting(client: TestClient, _sample_bookings) -> None:
     assert data["bookings"][0]["id"] == "BL-2024-001"
 
 
+def test_list_bookings_sort_by_margin_desc(client: TestClient, _sample_bookings, db_session) -> None:
+    """Test booking list sorting by computed margin (not creation time)."""
+    from datetime import datetime
+    from uuid import uuid4
+
+    from backend.adapters.persistence.repositories.booking_repository import (
+        SqlAlchemyBookingRepository,
+    )
+    from backend.domain.entities.booking import Booking
+    from backend.domain.enums import ChargeCategory
+    from backend.domain.value_objects import BookingCharge, Money
+
+    repo = SqlAlchemyBookingRepository(db_session)
+
+    # Created later but with lower margin than BL-2024-002.
+    newest_low_margin = Booking.create("BL-2024-003")
+    newest_low_margin.created_at = datetime.now()
+    newest_low_margin.add_revenue_charge(
+        BookingCharge(
+            booking_id="BL-2024-003",
+            invoice_id=uuid4(),
+            charge_category=ChargeCategory.FREIGHT,
+            provider_type=None,
+            container=None,
+            description="Small Revenue",
+            amount=Money(Decimal("100.00")),
+        )
+    )
+    repo.save(newest_low_margin)
+    db_session.commit()
+
+    response = client.get("/api/bookings?sort_by=margin&descending=true")
+
+    assert response.status_code == 200
+    data = response.json()
+    # BL-2024-002 has the highest margin (500), so it should rank first.
+    assert data["bookings"][0]["id"] == "BL-2024-002"
+
+
 def test_booking_margin_percentage(client: TestClient, _sample_bookings) -> None:
     """Test margin percentage calculation in booking detail."""
     response = client.get("/api/bookings/BL-2024-001")

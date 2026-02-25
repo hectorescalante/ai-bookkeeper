@@ -38,7 +38,7 @@ class ListBookingsUseCase:
         bookings = self.booking_repo.list_all(filters=filters, sort=sort)
 
         # Convert to DTOs
-        return [
+        items = [
             BookingListItem(
                 id=booking.id,
                 client_name=booking.client.name if booking.client else None,
@@ -52,3 +52,14 @@ class ListBookingsUseCase:
             )
             for booking in bookings
         ]
+
+        sort_fields = {
+            "created_at": lambda item: item.created_at,
+            "margin": lambda item: item.margin,
+            "commission": lambda item: item.commission,
+        }
+        sort_key = sort_fields.get(request.sort_by)
+        if sort_key is not None:
+            items.sort(key=sort_key, reverse=request.descending)
+
+        return items
