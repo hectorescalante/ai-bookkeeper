@@ -55,7 +55,7 @@ export const checkHealth = () => api.get<{ status: string }>("/health");
 export interface DocumentListItem {
   id: string;
   filename: string;
-  status: string;
+  status: DocumentStatus;
   document_type: string | null;
   created_at: string;
   processed_at: string | null;
@@ -126,7 +126,7 @@ export interface BookingListItem {
   id: string;
   client_name: string | null;
   created_at: string;
-  status: string;
+  status: BookingStatus;
   total_revenue: string | number;
   total_costs: string | number;
   margin: string | number;
@@ -142,7 +142,7 @@ export interface ListBookingsResponse {
 export interface BookingDetailResponse {
   id: string;
   created_at: string;
-  status: string;
+  status: BookingStatus;
   client_id: string | null;
   client_name: string | null;
   client_nif: string | null;
@@ -250,21 +250,23 @@ export interface ConfirmDocumentResponse {
   document_id: string;
   invoice_id: string | null;
   document_type: string;
-  status: string;
+  status: DocumentStatus;
   booking_ids: string[];
 }
+export type DocumentStatus = "PENDING" | "PROCESSING" | "PROCESSED" | "ERROR";
+export type BookingStatus = "PENDING" | "COMPLETE";
 
 export interface CommissionReportRequest {
   date_from?: string | null;
   date_to?: string | null;
-  status?: string | null;
+  status?: BookingStatus | null;
 }
 
 export interface CommissionReportItem {
   booking_id: string;
   client_name: string | null;
   created_at: string;
-  status: string;
+  status: BookingStatus;
   total_revenue: string | number;
   total_costs: string | number;
   margin: string | number;
@@ -290,7 +292,7 @@ export interface FileDownloadResponse {
 }
 
 export const listDocuments = (params?: {
-  status?: string;
+  status?: DocumentStatus;
   limit?: number;
 }) =>
   api.get<ListDocumentsResponse>("/documents", {
@@ -338,7 +340,7 @@ export const confirmDocument = (payload: ConfirmDocumentRequest) =>
 
 export const listBookings = (params?: {
   client_id?: string;
-  status?: string;
+  status?: BookingStatus;
   date_from?: string;
   date_to?: string;
   sort_by?: string;

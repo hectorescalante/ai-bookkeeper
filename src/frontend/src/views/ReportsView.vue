@@ -144,6 +144,8 @@ import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
 import {
+  type BookingStatus,
+  type CommissionReportRequest,
   exportCommissionReport,
   generateCommissionReport,
   type CommissionReportResponse,
@@ -154,7 +156,11 @@ const toast = useToast();
 
 const isLoading = ref(false);
 const isExporting = ref(false);
-const filters = ref({
+const filters = ref<{
+  date_from: string;
+  date_to: string;
+  status: "" | BookingStatus;
+}>({
   date_from: "",
   date_to: "",
   status: "",
@@ -205,10 +211,10 @@ const formatDate = (value: string): string =>
     day: "2-digit",
   });
 
-const normalizeFilters = () => ({
+const normalizeFilters = (): CommissionReportRequest => ({
   date_from: filters.value.date_from || null,
   date_to: filters.value.date_to || null,
-  status: filters.value.status || null,
+  status: filters.value.status === "" ? null : filters.value.status,
 });
 
 const downloadFile = (file: FileDownloadResponse): void => {
