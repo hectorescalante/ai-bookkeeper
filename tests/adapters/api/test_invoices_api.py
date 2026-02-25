@@ -106,6 +106,40 @@ def test_confirm_document_validation_error(client: TestClient, pending_document)
     assert response.status_code == 400
     assert "charge" in response.json()["detail"].lower()
 
+def test_confirm_document_invalid_document_type_returns_422(
+    client: TestClient, pending_document
+) -> None:
+    response = client.post(
+        "/api/invoices/confirm",
+        json={
+            "document_id": str(pending_document.id),
+            "document_type": "INVALID_TYPE",
+            "ai_model": "gemini-3-pro",
+            "raw_json": "{\"document_type\":\"INVALID_TYPE\"}",
+            "overall_confidence": "HIGH",
+            "invoice_number": "INV-102",
+            "invoice_date": "2024-01-15",
+            "issuer_name": "Our Company",
+            "issuer_nif": "B00000000",
+            "recipient_name": "Client A",
+            "recipient_nif": "C11111111",
+            "bl_references": ["BL-001"],
+            "charges": [
+                {
+                    "bl_reference": "BL-001",
+                    "description": "Ocean Freight",
+                    "category": "FREIGHT",
+                    "amount": "1000.00",
+                }
+            ],
+            "totals": {"tax_amount": "210.00", "total": "1210.00"},
+            "shipping_details": {},
+        },
+    )
+
+    assert response.status_code == 422
+    assert "document_type" in str(response.json()["detail"])
+
 
 def test_confirm_document_invalid_provider_type_returns_422(
     client: TestClient, pending_document

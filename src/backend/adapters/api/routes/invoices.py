@@ -1,6 +1,6 @@
 """Invoice processing API routes."""
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,6 +20,7 @@ from backend.config.dependencies import (
 from backend.domain.enums import ChargeCategory, ProviderType
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
+InvoiceDocumentType = Literal["CLIENT_INVOICE", "PROVIDER_INVOICE", "OTHER"]
 
 
 class ProcessDocumentRequest(BaseModel):
@@ -32,7 +33,7 @@ class ProcessDocumentResponse(BaseModel):
     """Response with extracted invoice data for user preview."""
 
     document_id: UUID
-    document_type: str
+    document_type: InvoiceDocumentType
     document_type_confidence: str
     ai_model: str
     raw_json: str
@@ -72,7 +73,7 @@ class ConfirmDocumentRequest(BaseModel):
     """Request to confirm reviewed data and persist invoice."""
 
     document_id: UUID
-    document_type: str
+    document_type: InvoiceDocumentType
     ai_model: str
     raw_json: str
     overall_confidence: str = "HIGH"
