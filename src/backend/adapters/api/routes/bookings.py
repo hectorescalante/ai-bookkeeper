@@ -1,5 +1,6 @@
 """Bookings API routes."""
 
+from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -52,8 +53,8 @@ def list_bookings(
         BookingStatusFilter | None,
         Query(description="Filter by status"),
     ] = None,
-    date_from: Annotated[str | None, Query(description="Date from (ISO)")] = None,
-    date_to: Annotated[str | None, Query(description="Date to (ISO)")] = None,
+    date_from: Annotated[date | None, Query(description="Date from (ISO)")] = None,
+    date_to: Annotated[date | None, Query(description="Date to (ISO)")] = None,
     sort_by: Annotated[
         BookingSortField,
         Query(description="Sort field"),
@@ -67,8 +68,8 @@ def list_bookings(
     dto_request = ListBookingsRequest(
         client_id=client_id,
         status=status,
-        date_from=date_from,
-        date_to=date_to,
+        date_from=date_from.isoformat() if date_from is not None else None,
+        date_to=date_to.isoformat() if date_to is not None else None,
         sort_by=sort_by,
         descending=descending,
     )

@@ -127,6 +127,15 @@ def test_list_bookings_invalid_sort_by_returns_422(client: TestClient, _sample_b
     assert response.status_code == 422
 
 
+def test_list_bookings_invalid_date_format_returns_422(
+    client: TestClient, _sample_bookings
+) -> None:
+    """Test GET /api/bookings with invalid date format."""
+    response = client.get("/api/bookings?date_from=01-02-2024")
+
+    assert response.status_code == 422
+
+
 def test_booking_list_includes_financial_summary(
     client: TestClient, _sample_bookings
 ) -> None:
