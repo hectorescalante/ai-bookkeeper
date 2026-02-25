@@ -1,6 +1,6 @@
 """Bookings API routes."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -30,6 +30,8 @@ from backend.config.dependencies import (
 
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
 _EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+BookingStatusFilter = Literal["PENDING", "COMPLETE"]
+BookingSortField = Literal["created_at", "margin", "commission"]
 
 
 class UpdateBookingRequest(BaseModel):
@@ -46,10 +48,16 @@ class UpdateBookingRequest(BaseModel):
 @router.get("", response_model=ListBookingsResponse, status_code=200)
 def list_bookings(
     client_id: Annotated[UUID | None, Query(description="Filter by client ID")] = None,
-    status: Annotated[str | None, Query(description="Filter by status")] = None,
+    status: Annotated[
+        BookingStatusFilter | None,
+        Query(description="Filter by status"),
+    ] = None,
     date_from: Annotated[str | None, Query(description="Date from (ISO)")] = None,
     date_to: Annotated[str | None, Query(description="Date to (ISO)")] = None,
-    sort_by: Annotated[str, Query(description="Sort field")] = "created_at",
+    sort_by: Annotated[
+        BookingSortField,
+        Query(description="Sort field"),
+    ] = "created_at",
     descending: Annotated[bool, Query(description="Sort descending")] = True,
     *,
     use_case: Annotated[ListBookingsUseCase, Depends(get_list_bookings_use_case)],

@@ -113,6 +113,20 @@ def test_list_bookings_by_status(client: TestClient, _sample_bookings) -> None:
     assert all(b["status"] == "PENDING" for b in data["bookings"])
 
 
+def test_list_bookings_invalid_status_returns_422(client: TestClient, _sample_bookings) -> None:
+    """Test GET /api/bookings with invalid status filter value."""
+    response = client.get("/api/bookings?status=INVALID")
+
+    assert response.status_code == 422
+
+
+def test_list_bookings_invalid_sort_by_returns_422(client: TestClient, _sample_bookings) -> None:
+    """Test GET /api/bookings with invalid sort_by value."""
+    response = client.get("/api/bookings?sort_by=unknown_field")
+
+    assert response.status_code == 422
+
+
 def test_booking_list_includes_financial_summary(
     client: TestClient, _sample_bookings
 ) -> None:
