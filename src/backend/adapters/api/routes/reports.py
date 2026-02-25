@@ -1,6 +1,6 @@
 """Reports API routes."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -27,6 +27,11 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 _EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
+def _to_iso_date(value: date | None) -> str | None:
+    """Convert optional date input to ISO date string."""
+    return value.isoformat() if value is not None else None
+
+
 @router.post("/commission", response_model=CommissionReportResponse, status_code=200)
 def generate_commission_report(
     request: CommissionReportRequest,
@@ -37,8 +42,8 @@ def generate_commission_report(
     """Generate commission report preview data."""
     try:
         dto_request = CommissionReportRequestDto(
-            date_from=request.date_from,
-            date_to=request.date_to,
+            date_from=_to_iso_date(request.date_from),
+            date_to=_to_iso_date(request.date_to),
             status=request.status,
         )
         result = use_case.execute(dto_request)
@@ -76,8 +81,8 @@ def export_commission_report(
     """Export commission report as an Excel file."""
     try:
         dto_request = CommissionReportRequestDto(
-            date_from=request.date_from,
-            date_to=request.date_to,
+            date_from=_to_iso_date(request.date_from),
+            date_to=_to_iso_date(request.date_to),
             status=request.status,
         )
         file_content = use_case.execute(dto_request)

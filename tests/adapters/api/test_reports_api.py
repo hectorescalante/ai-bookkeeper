@@ -191,6 +191,16 @@ def test_generate_commission_report_invalid_date_range_returns_400(
     assert "date_from" in response.json()["detail"].lower()
 
 
+def test_generate_commission_report_invalid_date_format_returns_422(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/reports/commission",
+        json={"date_from": "2024/02/01", "date_to": "2024-02-28"},
+    )
+    assert response.status_code == 422
+
+
 def test_export_commission_report_returns_excel_file(
     client: TestClient, sample_report_bookings
 ) -> None:
@@ -218,4 +228,14 @@ def test_export_commission_report_returns_excel_file(
 
 def test_export_commission_report_invalid_status_returns_422(client: TestClient) -> None:
     response = client.post("/api/reports/export", json={"status": "INVALID"})
+    assert response.status_code == 422
+
+
+def test_export_commission_report_invalid_date_format_returns_422(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/reports/export",
+        json={"date_from": "2024-02-01", "date_to": "28-02-2024"},
+    )
     assert response.status_code == 422

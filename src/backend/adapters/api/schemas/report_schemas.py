@@ -1,6 +1,6 @@
 """Pydantic schemas for reports API."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -11,8 +11,8 @@ BookingStatusFilter = Literal["PENDING", "COMPLETE"]
 class CommissionReportRequest(BaseModel):
     """Request body for commission report generation."""
 
-    date_from: str | None = Field(None, description="Start date (YYYY-MM-DD)")
-    date_to: str | None = Field(None, description="End date (YYYY-MM-DD)")
+    date_from: date | None = Field(None, description="Start date (YYYY-MM-DD)")
+    date_to: date | None = Field(None, description="End date (YYYY-MM-DD)")
     status: BookingStatusFilter | None = Field(None, description="Booking status filter")
 
 
@@ -49,7 +49,7 @@ class CommissionReportResponse(BaseModel):
 class ExportReportRequest(BaseModel):
     """Request body for report export."""
 
-    date_from: str | None = Field(None, description="Start date (YYYY-MM-DD)")
-    date_to: str | None = Field(None, description="End date (YYYY-MM-DD)")
+    date_from: date | None = Field(None, description="Start date (YYYY-MM-DD)")
+    date_to: date | None = Field(None, description="End date (YYYY-MM-DD)")
     status: BookingStatusFilter | None = Field(None, description="Booking status filter")
     file_name: str | None = Field(None, description="Optional export filename")
