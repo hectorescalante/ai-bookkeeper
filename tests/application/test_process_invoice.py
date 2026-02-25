@@ -15,6 +15,7 @@ from backend.domain.enums import ProcessingStatus
 from backend.domain.value_objects import FileHash
 from backend.ports.output.ai_extractor import (
     AIAuthError,
+    AIExtractionError,
     AIRateLimitError,
     AITimeoutError,
     ExtractionResult,
@@ -245,6 +246,37 @@ class TestProcessInvoiceUseCase:
         with pytest.raises(ValueError, match="cannot be processed"):
             use_case.execute(ProcessInvoiceRequest(document_id=doc.id))
 
+    def test_process_invoice_allows_reprocess_for_processed_document(self) -> None:
+        """Test allow_processed enables explicit reprocess on PROCESSED documents."""
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            _create_dummy_pdf(f.name)
+            doc = _make_document(storage_path=f.name)
+            doc.status = ProcessingStatus.PROCESSED
+
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = doc
+        settings_repo = MagicMock()
+        settings_repo.get.return_value = _make_settings()
+        company_repo = MagicMock()
+        company_repo.get.return_value = _make_company()
+        ai_extractor = MagicMock()
+        ai_extractor.extract_invoice_data.return_value = _make_extraction_result()
+
+        use_case = ProcessInvoiceUseCase(
+            document_repo=doc_repo,
+            settings_repo=settings_repo,
+            company_repo=company_repo,
+            ai_extractor=ai_extractor,
+        )
+
+        result = use_case.execute(
+            ProcessInvoiceRequest(document_id=doc.id, allow_processed=True)
+        )
+
+        assert result.document_id == doc.id
+        assert doc.status == ProcessingStatus.PROCESSING
+        ai_extractor.extract_invoice_data.assert_called_once()
+
     def test_process_invoice_ai_timeout(self) -> None:
         """Test handling of AI timeout error."""
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -420,3 +452,82 @@ class TestProcessInvoiceUseCase:
         assert pdf_content.has_text is False
         assert pdf_content.has_images is True
         assert len(pdf_content.page_images) == 1
+
+    def test_process_invoice_scanned_pdf_without_embedded_images(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test scanned PDF fallback still proceeds when no page images are extracted."""
+
+        class FakePage:
+            def __init__(self) -> None:
+                self.images: list[object] = []
+
+            def extract_text(self) -> str:
+                return ""
+
+        class FakeReader:
+            def __init__(self, _path: str) -> None:
+                self.pages = [FakePage()]
+
+        monkeypatch.setattr(
+            "backend.application.use_cases.process_invoice.PdfReader",
+            FakeReader,
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"not-a-real-pdf")
+            doc = _make_document(storage_path=f.name)
+
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = doc
+        settings_repo = MagicMock()
+        settings_repo.get.return_value = _make_settings()
+        company_repo = MagicMock()
+        company_repo.get.return_value = _make_company()
+        ai_extractor = MagicMock()
+        ai_extractor.extract_invoice_data.return_value = _make_extraction_result()
+
+        use_case = ProcessInvoiceUseCase(
+            document_repo=doc_repo,
+            settings_repo=settings_repo,
+            company_repo=company_repo,
+            ai_extractor=ai_extractor,
+        )
+
+        use_case.execute(ProcessInvoiceRequest(document_id=doc.id))
+
+        pdf_content = ai_extractor.extract_invoice_data.call_args.kwargs["pdf_content"]
+        assert pdf_content.is_scanned is True
+        assert pdf_content.has_text is False
+        assert pdf_content.has_images is False
+        assert pdf_content.page_images == []
+
+    def test_process_invoice_ai_extraction_error_marks_document_error(self) -> None:
+        """Test generic AI extraction failures are converted and stored on the document."""
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            _create_dummy_pdf(f.name)
+            doc = _make_document(storage_path=f.name)
+
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = doc
+        settings_repo = MagicMock()
+        settings_repo.get.return_value = _make_settings()
+        company_repo = MagicMock()
+        company_repo.get.return_value = _make_company()
+        ai_extractor = MagicMock()
+        ai_extractor.extract_invoice_data.side_effect = AIExtractionError("Malformed JSON")
+
+        use_case = ProcessInvoiceUseCase(
+            document_repo=doc_repo,
+            settings_repo=settings_repo,
+            company_repo=company_repo,
+            ai_extractor=ai_extractor,
+        )
+
+        with pytest.raises(ValueError, match="AI extraction failed"):
+            use_case.execute(ProcessInvoiceRequest(document_id=doc.id))
+
+        assert doc.status == ProcessingStatus.ERROR
+        assert doc.error_info is not None
+        assert "Malformed JSON" in doc.error_info.error_message
