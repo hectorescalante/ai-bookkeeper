@@ -67,7 +67,7 @@ All of this is tracked automatically as invoices arrive.
 - **Frontend**: Tauri + Vue 3 + PrimeVue + Tailwind CSS
 - **Backend**: Python (REST API)
 - **Database**: SQLite
-- **AI**: Anthropic Claude Sonnet 4.5 API
+- **AI**: Google Gemini 3 Pro API
 - **Storage**: iCloud Drive for PDFs and reports
 
 ## Documentation
@@ -165,7 +165,7 @@ pnpm vue-tsc --noEmit
 | `API_HOST` | API server host | `127.0.0.1` |
 | `API_PORT` | API server port | `8000` |
 | `DATABASE_URL` | SQLite database URL | `sqlite:///data/ai_bookkeeper.db` |
-| `ANTHROPIC_API_KEY` | Claude API key (optional, can configure in UI) | - |
+| `GEMINI_API_KEY` | Gemini API key (optional, can configure in UI) | - |
 | `AZURE_CLIENT_ID` | Azure AD app client ID for Outlook | - |
 | `AZURE_TENANT_ID` | Azure AD tenant ID | `common` |
 | `ICLOUD_ENABLED` | Enable iCloud Drive for PDF storage | `true` |

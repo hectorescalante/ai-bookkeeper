@@ -1,0 +1,60 @@
+name: Nightly Build Verification
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  nightly-macos-build:
+    name: Nightly macOS Build
+    runs-on: macos-latest
+
+    defaults:
+      run:
+        working-directory: src/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri app (release, unsigned)
+        run: pnpm tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+
+      - name: Upload nightly bundle artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-macos-bundle
+          path: |
+            src/frontend/src-tauri/target/release/bundle/dmg/*.dmg
+            src/frontend/src-tauri/target/release/bundle/macos/*.app.tar.gz
+            src/frontend/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
+            src/frontend/src-tauri/target/release/bundle/macos/*.app.zip
+          if-no-files-found: warn

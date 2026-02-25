@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  build-and-release-macos:
+    name: Build and Release macOS Artifacts
+    runs-on: macos-latest
+
+    defaults:
+      run:
+        working-directory: src/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri app (release, unsigned)
+        run: pnpm tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+
+      - name: Publish release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
+            src/frontend/src-tauri/target/release/bundle/dmg/*.dmg
+            src/frontend/src-tauri/target/release/bundle/macos/*.app.tar.gz
+            src/frontend/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
+            src/frontend/src-tauri/target/release/bundle/macos/*.app.zip
