@@ -109,6 +109,37 @@ export interface ListBookingsResponse {
   bookings: BookingListItem[];
   total: number;
 }
+
+export interface BookingDetailResponse {
+  id: string;
+  created_at: string;
+  status: string;
+  client_id: string | null;
+  client_name: string | null;
+  client_nif: string | null;
+  pol_code: string | null;
+  pol_name: string | null;
+  pod_code: string | null;
+  pod_name: string | null;
+  vessel: string | null;
+  containers: string[];
+  total_revenue: string | number;
+  total_costs: string | number;
+  margin: string | number;
+  margin_percentage: string | number;
+  commission: string | number;
+  revenue_charge_count: number;
+  cost_charge_count: number;
+}
+
+export interface UpdateBookingRequest {
+  vessel?: string | null;
+  containers?: string[] | null;
+  pol_code?: string | null;
+  pol_name?: string | null;
+  pod_code?: string | null;
+  pod_name?: string | null;
+}
 export const PROVIDER_TYPE_OPTIONS = [
   "SHIPPING",
   "CARRIER",
@@ -192,6 +223,41 @@ export interface ConfirmDocumentResponse {
   booking_ids: string[];
 }
 
+export interface CommissionReportRequest {
+  date_from?: string | null;
+  date_to?: string | null;
+  status?: string | null;
+}
+
+export interface CommissionReportItem {
+  booking_id: string;
+  client_name: string | null;
+  created_at: string;
+  status: string;
+  total_revenue: string | number;
+  total_costs: string | number;
+  margin: string | number;
+  commission: string | number;
+}
+
+export interface CommissionReportTotals {
+  booking_count: number;
+  total_revenue: string | number;
+  total_costs: string | number;
+  total_margin: string | number;
+  total_commission: string | number;
+}
+
+export interface CommissionReportResponse {
+  items: CommissionReportItem[];
+  totals: CommissionReportTotals;
+}
+
+export interface FileDownloadResponse {
+  blob: Blob;
+  file_name: string;
+}
+
 export const listDocuments = (params?: {
   status?: string;
   limit?: number;
@@ -232,5 +298,80 @@ export const listBookings = (params?: {
   api.get<ListBookingsResponse>("/bookings", {
     params,
   });
+
+export const getBookingDetail = (bookingId: string) =>
+  api.get<BookingDetailResponse>(`/bookings/${encodeURIComponent(bookingId)}`);
+
+export const updateBooking = (
+  bookingId: string,
+  payload: UpdateBookingRequest
+) =>
+  api.patch<BookingDetailResponse>(
+    `/bookings/${encodeURIComponent(bookingId)}`,
+    payload
+  );
+
+export const markBookingComplete = (bookingId: string) =>
+  api.post<BookingDetailResponse>(
+    `/bookings/${encodeURIComponent(bookingId)}/complete`
+  );
+
+export const revertBookingToPending = (bookingId: string) =>
+  api.post<BookingDetailResponse>(
+    `/bookings/${encodeURIComponent(bookingId)}/revert`
+  );
+
+const extractFilename = (
+  contentDisposition: string | undefined,
+  fallback: string
+): string => {
+  if (!contentDisposition) {
+    return fallback;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const basicMatch = contentDisposition.match(/filename="([^"]+)"/i);
+  if (basicMatch?.[1]) {
+    return basicMatch[1];
+  }
+
+  return fallback;
+};
+
+export const exportBooking = async (bookingId: string) => {
+  const response = await apiClient.get<Blob>(
+    `/bookings/${encodeURIComponent(bookingId)}/export`,
+    { responseType: "blob" }
+  );
+  return {
+    blob: response.data,
+    file_name: extractFilename(
+      response.headers["content-disposition"],
+      `booking-${bookingId}.xlsx`
+    ),
+  } satisfies FileDownloadResponse;
+};
+
+export const generateCommissionReport = (payload: CommissionReportRequest) =>
+  api.post<CommissionReportResponse>("/reports/commission", payload);
+
+export const exportCommissionReport = async (
+  payload: CommissionReportRequest & { file_name?: string | null }
+) => {
+  const response = await apiClient.post<Blob>("/reports/export", payload, {
+    responseType: "blob",
+  });
+  return {
+    blob: response.data,
+    file_name: extractFilename(
+      response.headers["content-disposition"],
+      "commission-report.xlsx"
+    ),
+  } satisfies FileDownloadResponse;
+};
 
 export default api;
