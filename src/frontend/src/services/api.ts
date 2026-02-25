@@ -85,6 +85,26 @@ export interface SettingsResponse {
   extraction_prompt: string;
 }
 
+export interface ConfigureSettingsRequest {
+  gemini_api_key?: string | null;
+  default_export_path?: string | null;
+  extraction_prompt?: string | null;
+}
+
+export interface CompanyResponse {
+  id: string;
+  name: string;
+  nif: string;
+  commission_rate: string | number;
+  is_configured: boolean;
+}
+
+export interface ConfigureCompanyRequest {
+  name: string;
+  nif: string;
+  commission_rate: string | number;
+}
+
 export interface OutlookConnectResponse {
   authorization_url: string;
 }
@@ -277,6 +297,14 @@ export const fetchEmails = (maxMessages = 25) =>
   });
 
 export const getSettings = () => api.get<SettingsResponse>("/config/settings");
+
+export const configureSettings = (payload: ConfigureSettingsRequest) =>
+  api.post<SettingsResponse>("/config/settings", payload);
+
+export const getCompany = () => api.get<CompanyResponse>("/config/company");
+
+export const configureCompany = (payload: ConfigureCompanyRequest) =>
+  api.post<CompanyResponse>("/config/company", payload);
 
 export const connectOutlook = () =>
   api.get<OutlookConnectResponse>("/settings/outlook/connect");

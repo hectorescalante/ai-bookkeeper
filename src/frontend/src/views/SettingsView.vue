@@ -5,19 +5,134 @@
     </div>
 
     <div class="space-y-6">
-      <!-- Company Settings -->
       <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Company</h2>
-        <p class="text-gray-500">Configure your company NIF and details.</p>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-800">Company</h2>
+          <span
+            class="inline-flex px-2 py-1 rounded text-xs font-semibold"
+            :class="
+              companyConfigured
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-700'
+            "
+          >
+            {{ companyConfigured ? "Configured" : "Not configured" }}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs text-gray-600">Company name</label>
+            <InputText
+              v-model="companyForm.name"
+              class="w-full"
+              placeholder="Exoticca S.L."
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Company NIF</label>
+            <InputText
+              v-model="companyForm.nif"
+              class="w-full"
+              placeholder="B12345678"
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Commission rate (0-1)</label>
+            <InputText
+              v-model="companyForm.commission_rate"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              class="w-full"
+            />
+          </div>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+          <Button
+            label="Save company"
+            icon="pi pi-save"
+            :loading="isSavingCompany"
+            :disabled="isLoadingCompany"
+            @click="saveCompany"
+          />
+        </div>
       </div>
 
-      <!-- Agent Settings -->
       <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Agent</h2>
-        <p class="text-gray-500">Configure agent profile information.</p>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-800">AI Extraction</h2>
+          <span
+            class="inline-flex px-2 py-1 rounded text-xs font-semibold"
+            :class="
+              hasApiKey
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-700'
+            "
+          >
+            {{ hasApiKey ? "Gemini key configured" : "Gemini key not configured" }}
+          </span>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-gray-600">Gemini API key (optional update)</label>
+            <InputText
+              v-model="settingsForm.gemini_api_key"
+              type="password"
+              class="w-full"
+              placeholder="Leave empty to keep current key"
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Default export path</label>
+            <InputText
+              v-model="settingsForm.default_export_path"
+              class="w-full"
+              placeholder="/Users/you/Reports"
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Extraction prompt</label>
+            <Textarea
+              v-model="settingsForm.extraction_prompt"
+              rows="7"
+              class="w-full font-mono text-xs"
+            />
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <Button
+            label="Reload saved"
+            icon="pi pi-refresh"
+            severity="secondary"
+            text
+            :loading="isLoadingSettings"
+            :disabled="isSavingSettings"
+            @click="loadSettings"
+          />
+          <Button
+            label="Clear API key"
+            icon="pi pi-times"
+            severity="secondary"
+            outlined
+            :loading="isClearingApiKey"
+            :disabled="isClearingApiKey || isSavingSettings"
+            @click="clearApiKey"
+          />
+          <Button
+            label="Save settings"
+            icon="pi pi-save"
+            :loading="isSavingSettings"
+            :disabled="isLoadingSettings"
+            @click="saveSettings"
+          />
+        </div>
       </div>
 
-      <!-- Integrations -->
       <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-lg font-semibold text-gray-800 mb-4">Integrations</h2>
         <div class="space-y-3">
@@ -76,19 +191,40 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import Button from "primevue/button";
+import InputText from "primevue/inputtext";
+import Textarea from "primevue/textarea";
 import { useToast } from "primevue/usetoast";
 import {
+  configureCompany,
+  configureSettings,
   connectOutlook,
   disconnectOutlook,
+  getCompany,
   getSettings,
 } from "../services/api";
 
 const toast = useToast();
-
+const isLoadingCompany = ref(false);
+const isSavingCompany = ref(false);
 const isLoadingSettings = ref(false);
+const isSavingSettings = ref(false);
+const isClearingApiKey = ref(false);
 const isConnecting = ref(false);
 const isDisconnecting = ref(false);
+
+const companyConfigured = ref(false);
+const hasApiKey = ref(false);
 const outlookConfigured = ref(false);
+const companyForm = ref({
+  name: "",
+  nif: "",
+  commission_rate: "0.50",
+});
+const settingsForm = ref({
+  gemini_api_key: "",
+  default_export_path: "",
+  extraction_prompt: "",
+});
 
 const extractErrorMessage = (error: unknown): string => {
   if (
@@ -115,14 +251,57 @@ const isNotConfiguredError = (error: unknown): boolean =>
   "response" in error &&
   (error as { response?: { status?: number } }).response?.status === 404;
 
+const loadCompany = async (): Promise<void> => {
+  isLoadingCompany.value = true;
+  try {
+    const company = await getCompany();
+    companyConfigured.value = company.is_configured;
+    companyForm.value = {
+      name: company.name,
+      nif: company.nif,
+      commission_rate: String(company.commission_rate),
+    };
+  } catch (error) {
+    if (isNotConfiguredError(error)) {
+      companyConfigured.value = false;
+      companyForm.value = {
+        name: "",
+        nif: "",
+        commission_rate: "0.50",
+      };
+      return;
+    }
+    toast.add({
+      severity: "error",
+      summary: "Failed to load company",
+      detail: extractErrorMessage(error),
+      life: 4500,
+    });
+  } finally {
+    isLoadingCompany.value = false;
+  }
+};
+
 const loadSettings = async (): Promise<void> => {
   isLoadingSettings.value = true;
   try {
     const settings = await getSettings();
+    hasApiKey.value = settings.has_api_key;
     outlookConfigured.value = settings.outlook_configured;
+    settingsForm.value = {
+      gemini_api_key: "",
+      default_export_path: settings.default_export_path,
+      extraction_prompt: settings.extraction_prompt,
+    };
   } catch (error) {
     if (isNotConfiguredError(error)) {
+      hasApiKey.value = false;
       outlookConfigured.value = false;
+      settingsForm.value = {
+        gemini_api_key: "",
+        default_export_path: "",
+        extraction_prompt: "",
+      };
       return;
     }
     toast.add({
@@ -133,6 +312,135 @@ const loadSettings = async (): Promise<void> => {
     });
   } finally {
     isLoadingSettings.value = false;
+  }
+};
+
+const saveCompany = async (): Promise<void> => {
+  const name = companyForm.value.name.trim();
+  const nif = companyForm.value.nif.trim();
+  const commissionRate = Number(companyForm.value.commission_rate);
+
+  if (!name || !nif) {
+    toast.add({
+      severity: "warn",
+      summary: "Missing fields",
+      detail: "Company name and NIF are required.",
+      life: 3500,
+    });
+    return;
+  }
+
+  if (
+    Number.isNaN(commissionRate) ||
+    commissionRate < 0 ||
+    commissionRate > 1
+  ) {
+    toast.add({
+      severity: "warn",
+      summary: "Invalid commission rate",
+      detail: "Commission rate must be a number between 0 and 1.",
+      life: 3500,
+    });
+    return;
+  }
+
+  isSavingCompany.value = true;
+  try {
+    const response = await configureCompany({
+      name,
+      nif,
+      commission_rate: commissionRate.toFixed(2),
+    });
+    companyConfigured.value = response.is_configured;
+    companyForm.value = {
+      name: response.name,
+      nif: response.nif,
+      commission_rate: String(response.commission_rate),
+    };
+    window.dispatchEvent(new Event("bookings:refresh"));
+    toast.add({
+      severity: "success",
+      summary: "Company saved",
+      detail: "Company configuration updated successfully.",
+      life: 3500,
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to save company",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
+  } finally {
+    isSavingCompany.value = false;
+  }
+};
+
+const saveSettings = async (): Promise<void> => {
+  const prompt = settingsForm.value.extraction_prompt.trim();
+  if (!prompt) {
+    toast.add({
+      severity: "warn",
+      summary: "Prompt is required",
+      detail: "Extraction prompt cannot be empty.",
+      life: 3500,
+    });
+    return;
+  }
+
+  isSavingSettings.value = true;
+  try {
+    const geminiApiKey = settingsForm.value.gemini_api_key.trim();
+    const response = await configureSettings({
+      gemini_api_key: geminiApiKey.length > 0 ? geminiApiKey : null,
+      default_export_path: settingsForm.value.default_export_path.trim(),
+      extraction_prompt: prompt,
+    });
+    hasApiKey.value = response.has_api_key;
+    outlookConfigured.value = response.outlook_configured;
+    settingsForm.value = {
+      gemini_api_key: "",
+      default_export_path: response.default_export_path,
+      extraction_prompt: response.extraction_prompt,
+    };
+    toast.add({
+      severity: "success",
+      summary: "Settings saved",
+      detail: "AI settings updated successfully.",
+      life: 3500,
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to save settings",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
+  } finally {
+    isSavingSettings.value = false;
+  }
+};
+
+const clearApiKey = async (): Promise<void> => {
+  isClearingApiKey.value = true;
+  try {
+    const response = await configureSettings({ gemini_api_key: "" });
+    hasApiKey.value = response.has_api_key;
+    settingsForm.value.gemini_api_key = "";
+    toast.add({
+      severity: "success",
+      summary: "Gemini key cleared",
+      life: 3000,
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to clear API key",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
+  } finally {
+    isClearingApiKey.value = false;
   }
 };
 
@@ -212,6 +520,6 @@ const handleOutlookDisconnect = async (): Promise<void> => {
 };
 
 onMounted(async () => {
-  await loadSettings();
+  await Promise.all([loadCompany(), loadSettings()]);
 });
 </script>
