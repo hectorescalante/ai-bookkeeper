@@ -2,16 +2,18 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
+BookingStatusFilter = Literal["PENDING", "COMPLETE"]
 
 class CommissionReportRequest(BaseModel):
     """Request body for commission report generation."""
 
     date_from: str | None = Field(None, description="Start date (YYYY-MM-DD)")
     date_to: str | None = Field(None, description="End date (YYYY-MM-DD)")
-    status: str | None = Field(None, description="Booking status filter")
+    status: BookingStatusFilter | None = Field(None, description="Booking status filter")
 
 
 class CommissionReportItem(BaseModel):
@@ -49,5 +51,5 @@ class ExportReportRequest(BaseModel):
 
     date_from: str | None = Field(None, description="Start date (YYYY-MM-DD)")
     date_to: str | None = Field(None, description="End date (YYYY-MM-DD)")
-    status: str | None = Field(None, description="Booking status filter")
+    status: BookingStatusFilter | None = Field(None, description="Booking status filter")
     file_name: str | None = Field(None, description="Optional export filename")

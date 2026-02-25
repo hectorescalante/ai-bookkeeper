@@ -175,10 +175,9 @@ def test_generate_commission_report_filters_by_date_range(
     assert payload["items"][0]["booking_id"] == "BL-2024-003"
 
 
-def test_generate_commission_report_invalid_status_returns_400(client: TestClient) -> None:
+def test_generate_commission_report_invalid_status_returns_422(client: TestClient) -> None:
     response = client.post("/api/reports/commission", json={"status": "INVALID"})
-    assert response.status_code == 400
-    assert "invalid status" in response.json()["detail"].lower()
+    assert response.status_code == 422
 
 
 def test_generate_commission_report_invalid_date_range_returns_400(
@@ -215,3 +214,8 @@ def test_export_commission_report_returns_excel_file(
     assert sheet["A1"].value == "Booking ID"
     first_column_values = [cell.value for cell in sheet["A"] if cell.value]
     assert "TOTAL" in first_column_values
+
+
+def test_export_commission_report_invalid_status_returns_422(client: TestClient) -> None:
+    response = client.post("/api/reports/export", json={"status": "INVALID"})
+    assert response.status_code == 422
