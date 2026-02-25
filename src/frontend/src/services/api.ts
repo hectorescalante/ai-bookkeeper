@@ -65,6 +65,15 @@ export interface DocumentListItem {
   error_retryable: boolean | null;
 }
 
+export interface BookingChargeItem {
+  invoice_id: string;
+  charge_category: string;
+  provider_type: string | null;
+  container: string | null;
+  description: string;
+  amount: string | number;
+}
+
 export interface ListDocumentsResponse {
   documents: DocumentListItem[];
   total: number;
@@ -150,6 +159,8 @@ export interface BookingDetailResponse {
   commission: string | number;
   revenue_charge_count: number;
   cost_charge_count: number;
+  revenue_charges: BookingChargeItem[];
+  cost_charges: BookingChargeItem[];
 }
 
 export interface UpdateBookingRequest {
@@ -290,6 +301,16 @@ export const processDocument = (documentId: string) =>
   api.post<ProcessDocumentResponse>("/invoices/process", {
     document_id: documentId,
   });
+
+export const retryDocument = (documentId: string) =>
+  api.post<ProcessDocumentResponse>(
+    `/documents/${encodeURIComponent(documentId)}/retry`
+  );
+
+export const reprocessDocument = (documentId: string) =>
+  api.post<ProcessDocumentResponse>(
+    `/documents/${encodeURIComponent(documentId)}/reprocess`
+  );
 
 export const fetchEmails = (maxMessages = 25) =>
   api.post<FetchEmailsResponse>("/documents/fetch", {

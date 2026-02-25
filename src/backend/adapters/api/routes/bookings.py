@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from backend.adapters.api.schemas import (
+    BookingChargeItem,
     BookingDetailResponse,
     BookingListItem,
     ListBookingsResponse,
@@ -214,4 +215,26 @@ def _build_booking_detail_or_404(
         commission=result.commission,
         revenue_charge_count=result.revenue_charge_count,
         cost_charge_count=result.cost_charge_count,
+        revenue_charges=[
+            BookingChargeItem(
+                invoice_id=charge.invoice_id,
+                charge_category=charge.charge_category,
+                provider_type=charge.provider_type,
+                container=charge.container,
+                description=charge.description,
+                amount=charge.amount,
+            )
+            for charge in result.revenue_charges
+        ],
+        cost_charges=[
+            BookingChargeItem(
+                invoice_id=charge.invoice_id,
+                charge_category=charge.charge_category,
+                provider_type=charge.provider_type,
+                container=charge.container,
+                description=charge.description,
+                amount=charge.amount,
+            )
+            for charge in result.cost_charges
+        ],
     )

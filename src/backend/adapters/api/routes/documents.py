@@ -1,25 +1,32 @@
 """Documents API routes."""
 
-from typing import Annotated
+from typing import Annotated, NoReturn
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from backend.adapters.api.routes.invoices import ProcessDocumentResponse
 from backend.adapters.api.schemas import (
     DocumentListItem,
     FetchEmailsRequest,
     FetchEmailsResponse,
     ListDocumentsResponse,
 )
-from backend.application.dtos import (
-    FetchEmailsRequest as FetchEmailsRequestDto,
-)
+from backend.application.dtos import FetchEmailsRequest as FetchEmailsRequestDto
 from backend.application.dtos import (
     ListDocumentsRequest,
+    ProcessInvoiceRequest,
+    ProcessInvoiceResponse,
 )
-from backend.application.use_cases import FetchEmailsUseCase, ListDocumentsUseCase
+from backend.application.use_cases import (
+    FetchEmailsUseCase,
+    ListDocumentsUseCase,
+    ProcessInvoiceUseCase,
+)
 from backend.config.dependencies import (
     get_fetch_emails_use_case,
     get_list_documents_use_case,
+    get_process_invoice_use_case,
 )
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -32,16 +39,11 @@ def list_documents(
     use_case: ListDocumentsUseCase = Depends(get_list_documents_use_case),
 ) -> ListDocumentsResponse:
     """List documents with optional status filtering."""
-    # Map query params to DTO
     dto_request = ListDocumentsRequest(
         status=status,
         limit=limit,
     )
-
-    # Execute use case
     documents = use_case.execute(dto_request)
-
-    # Map DTOs to Pydantic
     return ListDocumentsResponse(
         documents=[
             DocumentListItem(
@@ -84,3 +86,71 @@ def fetch_emails(
         if "rate limit" in lowered:
             raise HTTPException(status_code=429, detail=detail) from exc
         raise HTTPException(status_code=502, detail=detail) from exc
+
+
+def _build_process_response(result: ProcessInvoiceResponse) -> ProcessDocumentResponse:
+    return ProcessDocumentResponse(
+        document_id=result.document_id,
+        document_type=result.document_type,
+        document_type_confidence=result.document_type_confidence,
+        ai_model=result.ai_model,
+        raw_json=result.raw_json,
+        invoice_number=result.invoice_number,
+        invoice_date=result.invoice_date,
+        issuer_name=result.issuer_name,
+        issuer_nif=result.issuer_nif,
+        recipient_name=result.recipient_name,
+        recipient_nif=result.recipient_nif,
+        provider_type=result.provider_type,
+        currency_valid=result.currency_valid,
+        currency_detected=result.currency_detected,
+        bl_references=result.bl_references,
+        charges=result.charges,
+        totals=result.totals,
+        extraction_notes=result.extraction_notes,
+        overall_confidence=result.overall_confidence,
+        warnings=result.warnings,
+        errors=result.errors,
+    )
+
+
+def _raise_process_http_error(exc: ValueError) -> NoReturn:
+    detail = str(exc)
+    lowered = detail.lower()
+    if "not configured" in lowered or "not found" in lowered:
+        raise HTTPException(status_code=400, detail=detail) from exc
+    if "invalid" in lowered and "key" in lowered:
+        raise HTTPException(status_code=401, detail=detail) from exc
+    if "rate limit" in lowered:
+        raise HTTPException(status_code=429, detail=detail) from exc
+    if "timed out" in lowered:
+        raise HTTPException(status_code=504, detail=detail) from exc
+    raise HTTPException(status_code=400, detail=detail) from exc
+
+
+@router.post("/{document_id}/retry", response_model=ProcessDocumentResponse, status_code=200)
+def retry_document(
+    document_id: UUID,
+    use_case: Annotated[ProcessInvoiceUseCase, Depends(get_process_invoice_use_case)],
+) -> ProcessDocumentResponse:
+    """Retry processing a document in ERROR status."""
+    try:
+        result = use_case.execute(ProcessInvoiceRequest(document_id=document_id))
+        return _build_process_response(result)
+    except ValueError as exc:
+        _raise_process_http_error(exc)
+
+
+@router.post("/{document_id}/reprocess", response_model=ProcessDocumentResponse, status_code=200)
+def reprocess_document(
+    document_id: UUID,
+    use_case: Annotated[ProcessInvoiceUseCase, Depends(get_process_invoice_use_case)],
+) -> ProcessDocumentResponse:
+    """Reprocess a previously processed document."""
+    try:
+        result = use_case.execute(
+            ProcessInvoiceRequest(document_id=document_id, allow_processed=True)
+        )
+        return _build_process_response(result)
+    except ValueError as exc:
+        _raise_process_http_error(exc)

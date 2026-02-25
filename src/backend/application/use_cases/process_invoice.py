@@ -84,13 +84,17 @@ class ProcessInvoiceUseCase:
         if document is None:
             raise ValueError(f"Document not found: {request.document_id}")
 
-        if document.status not in (ProcessingStatus.PENDING, ProcessingStatus.ERROR):
+        allowed_statuses = {ProcessingStatus.PENDING, ProcessingStatus.ERROR}
+        if request.allow_processed:
+            allowed_statuses.add(ProcessingStatus.PROCESSED)
+
+        if document.status not in allowed_statuses:
             raise ValueError(
                 f"Document cannot be processed in {document.status.value} status"
             )
 
         # 3. Mark as processing
-        document.start_processing()
+        document.start_processing(allow_reprocess=request.allow_processed)
         self.document_repo.update(document)
 
         try:

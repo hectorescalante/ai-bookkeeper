@@ -146,6 +146,22 @@ def test_get_booking_detail(client: TestClient, _sample_bookings) -> None:
     assert Decimal(data["margin"]) == Decimal("400.00")
     assert data["revenue_charge_count"] == 1
     assert data["cost_charge_count"] == 1
+    assert len(data["revenue_charges"]) == 1
+    assert len(data["cost_charges"]) == 1
+
+    revenue_charge = data["revenue_charges"][0]
+    assert revenue_charge["charge_category"] == "FREIGHT"
+    assert revenue_charge["provider_type"] is None
+    assert revenue_charge["container"] == "CONT001"
+    assert revenue_charge["description"] == "Ocean Freight"
+    assert Decimal(revenue_charge["amount"]) == Decimal("1000.00")
+
+    cost_charge = data["cost_charges"][0]
+    assert cost_charge["charge_category"] == "FREIGHT"
+    assert cost_charge["provider_type"] == "CARRIER"
+    assert cost_charge["container"] == "CONT001"
+    assert cost_charge["description"] == "Carrier Cost"
+    assert Decimal(cost_charge["amount"]) == Decimal("600.00")
 
 
 def test_get_booking_detail_not_found(client: TestClient) -> None:

@@ -44,9 +44,13 @@ class Document:
             storage_path=storage_path,
         )
 
-    def start_processing(self) -> None:
+    def start_processing(self, *, allow_reprocess: bool = False) -> None:
         """Mark document as being processed."""
-        if self.status not in (ProcessingStatus.PENDING, ProcessingStatus.ERROR):
+        allowed_statuses = {ProcessingStatus.PENDING, ProcessingStatus.ERROR}
+        if allow_reprocess:
+            allowed_statuses.add(ProcessingStatus.PROCESSED)
+
+        if self.status not in allowed_statuses:
             raise ValueError(f"Cannot start processing document in {self.status} status")
         self.status = ProcessingStatus.PROCESSING
         self.error_info = None

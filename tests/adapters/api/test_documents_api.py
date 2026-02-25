@@ -1,12 +1,14 @@
 """Integration tests for documents API endpoints."""
 
 from datetime import datetime
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from backend.application.dtos.document_dtos import FetchEmailsResponse as FetchEmailsResponseDto
-from backend.config.dependencies import get_fetch_emails_use_case
+from backend.application.dtos.invoice_dtos import ProcessInvoiceResponse
+from backend.config.dependencies import get_fetch_emails_use_case, get_process_invoice_use_case
 from backend.domain.entities.document import Document
 from backend.domain.enums import DocumentType
 from backend.domain.value_objects import EmailReference, FileHash
@@ -121,6 +123,24 @@ class _StubFetchEmailsUseCase:
         self._error = error
 
     def execute(self, _request):  # noqa: ANN001
+        self.last_request = _request
+        if self._error is not None:
+            raise self._error
+        assert self._response is not None
+        return self._response
+
+
+class _StubProcessInvoiceUseCase:
+    def __init__(
+        self,
+        response: ProcessInvoiceResponse | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self._response = response
+        self._error = error
+        self.last_request = None
+
+    def execute(self, _request):  # noqa: ANN001
         if self._error is not None:
             raise self._error
         assert self._response is not None
@@ -160,3 +180,116 @@ def test_fetch_emails_endpoint_outlook_not_connected(client: TestClient) -> None
 
     assert response.status_code == 400
     assert "Outlook is not connected" in response.json()["detail"]
+
+
+def test_retry_document_endpoint_success(client: TestClient) -> None:
+    document_id = uuid4()
+    app.dependency_overrides[get_process_invoice_use_case] = (
+        lambda: _StubProcessInvoiceUseCase(
+            response=ProcessInvoiceResponse(
+                document_id=document_id,
+                document_type="CLIENT_INVOICE",
+                document_type_confidence="HIGH",
+                ai_model="gemini-3-pro",
+                raw_json="{\"document_type\":\"CLIENT_INVOICE\"}",
+                invoice_number="INV-123",
+                invoice_date="2024-01-01",
+                issuer_name="Issuer",
+                issuer_nif="B11111111",
+                recipient_name="Recipient",
+                recipient_nif="B22222222",
+                provider_type=None,
+                currency_valid=True,
+                currency_detected="EUR",
+                bl_references=[{"bl_number": "BL-001"}],
+                charges=[],
+                totals={"total": "100.00"},
+                extraction_notes=None,
+                overall_confidence="HIGH",
+                warnings=[],
+                errors=[],
+            )
+        )
+    )
+    try:
+        response = client.post(f"/api/documents/{document_id}/retry")
+    finally:
+        app.dependency_overrides.pop(get_process_invoice_use_case, None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document_id"] == str(document_id)
+    assert payload["document_type"] == "CLIENT_INVOICE"
+    assert payload["invoice_number"] == "INV-123"
+
+
+def test_retry_document_endpoint_rate_limit_maps_to_429(client: TestClient) -> None:
+    document_id = uuid4()
+    app.dependency_overrides[get_process_invoice_use_case] = (
+        lambda: _StubProcessInvoiceUseCase(
+            error=ValueError("AI rate limit reached. Try again in 2 minutes.")
+        )
+    )
+    try:
+        response = client.post(f"/api/documents/{document_id}/retry")
+    finally:
+        app.dependency_overrides.pop(get_process_invoice_use_case, None)
+
+    assert response.status_code == 429
+    assert "rate limit" in response.json()["detail"].lower()
+
+
+def test_reprocess_document_endpoint_success(client: TestClient) -> None:
+    document_id = uuid4()
+    stub = _StubProcessInvoiceUseCase(
+        response=ProcessInvoiceResponse(
+            document_id=document_id,
+            document_type="CLIENT_INVOICE",
+            document_type_confidence="HIGH",
+            ai_model="gemini-3-pro",
+            raw_json="{\"document_type\":\"CLIENT_INVOICE\"}",
+            invoice_number="INV-555",
+            invoice_date="2024-01-02",
+            issuer_name="Issuer",
+            issuer_nif="B11111111",
+            recipient_name="Recipient",
+            recipient_nif="B22222222",
+            provider_type=None,
+            currency_valid=True,
+            currency_detected="EUR",
+            bl_references=[{"bl_number": "BL-002"}],
+            charges=[],
+            totals={"total": "120.00"},
+            extraction_notes=None,
+            overall_confidence="HIGH",
+            warnings=[],
+            errors=[],
+        )
+    )
+    app.dependency_overrides[get_process_invoice_use_case] = lambda: stub
+    try:
+        response = client.post(f"/api/documents/{document_id}/reprocess")
+    finally:
+        app.dependency_overrides.pop(get_process_invoice_use_case, None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document_id"] == str(document_id)
+    assert payload["invoice_number"] == "INV-555"
+    assert payload["document_type"] == "CLIENT_INVOICE"
+
+
+def test_reprocess_document_endpoint_timeout_maps_to_504(client: TestClient) -> None:
+    document_id = uuid4()
+    app.dependency_overrides[get_process_invoice_use_case] = (
+        lambda: _StubProcessInvoiceUseCase(
+            error=ValueError("AI processing timed out. Please retry.")
+        )
+    )
+    try:
+        response = client.post(f"/api/documents/{document_id}/reprocess")
+    finally:
+        app.dependency_overrides.pop(get_process_invoice_use_case, None)
+
+    assert response.status_code == 504
+    assert "timed out" in response.json()["detail"].lower()

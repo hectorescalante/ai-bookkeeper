@@ -145,9 +145,76 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-700">
-        <p>Revenue charges: <span class="font-semibold">{{ booking.revenue_charge_count }}</span></p>
-        <p>Cost charges: <span class="font-semibold">{{ booking.cost_charge_count }}</span></p>
+      <div class="bg-white rounded-lg shadow p-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-3">Revenue charges</h2>
+        <p class="text-sm text-gray-700 mb-3">
+          Count: <span class="font-semibold">{{ booking.revenue_charge_count }}</span>
+        </p>
+        <div
+          v-if="booking.revenue_charges.length > 0"
+          class="overflow-x-auto border border-gray-200 rounded"
+        >
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-600">
+              <tr>
+                <th class="px-3 py-2">Category</th>
+                <th class="px-3 py-2">Description</th>
+                <th class="px-3 py-2">Container</th>
+                <th class="px-3 py-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="charge in booking.revenue_charges"
+                :key="`${charge.invoice_id}-${charge.description}-${charge.amount}`"
+                class="border-t border-gray-100"
+              >
+                <td class="px-3 py-2">{{ charge.charge_category }}</td>
+                <td class="px-3 py-2">{{ charge.description }}</td>
+                <td class="px-3 py-2">{{ charge.container ?? "—" }}</td>
+                <td class="px-3 py-2 text-right">{{ formatMoney(charge.amount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="text-sm text-gray-500">No revenue charges.</p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow p-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-3">Cost charges</h2>
+        <p class="text-sm text-gray-700 mb-3">
+          Count: <span class="font-semibold">{{ booking.cost_charge_count }}</span>
+        </p>
+        <div
+          v-if="booking.cost_charges.length > 0"
+          class="overflow-x-auto border border-gray-200 rounded"
+        >
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-600">
+              <tr>
+                <th class="px-3 py-2">Provider type</th>
+                <th class="px-3 py-2">Category</th>
+                <th class="px-3 py-2">Description</th>
+                <th class="px-3 py-2">Container</th>
+                <th class="px-3 py-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="charge in booking.cost_charges"
+                :key="`${charge.invoice_id}-${charge.description}-${charge.amount}`"
+                class="border-t border-gray-100"
+              >
+                <td class="px-3 py-2">{{ charge.provider_type ?? "—" }}</td>
+                <td class="px-3 py-2">{{ charge.charge_category }}</td>
+                <td class="px-3 py-2">{{ charge.description }}</td>
+                <td class="px-3 py-2">{{ charge.container ?? "—" }}</td>
+                <td class="px-3 py-2 text-right">{{ formatMoney(charge.amount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="text-sm text-gray-500">No cost charges.</p>
       </div>
     </div>
   </div>

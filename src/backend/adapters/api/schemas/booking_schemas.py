@@ -39,6 +39,17 @@ class ListBookingsParams(BaseModel):
     descending: bool = Field(True, description="Sort in descending order")
 
 
+class BookingChargeItem(BaseModel):
+    """Single charge line in booking detail."""
+
+    invoice_id: UUID
+    charge_category: str
+    provider_type: str | None
+    container: str | None
+    description: str
+    amount: Decimal
+
+
 class BookingDetailResponse(BaseModel):
     """Complete booking detail response."""
 
@@ -69,3 +80,5 @@ class BookingDetailResponse(BaseModel):
     # Charges
     revenue_charge_count: int
     cost_charge_count: int
+    revenue_charges: list[BookingChargeItem]
+    cost_charges: list[BookingChargeItem]

@@ -10,6 +10,7 @@ class ProcessInvoiceRequest:
     """Request to process a document with AI extraction."""
 
     document_id: UUID
+    allow_processed: bool = False
 
 
 @dataclass(frozen=True)

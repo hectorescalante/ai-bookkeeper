@@ -1,6 +1,7 @@
 """Data Transfer Objects for application layer."""
 
 from backend.application.dtos.booking_dtos import (
+    BookingChargeItem,
     BookingDetailResponse,
     BookingListItem,
     EditBookingRequest,
@@ -33,6 +34,7 @@ from backend.application.dtos.report_dtos import (
 )
 
 __all__ = [
+    "BookingChargeItem",
     "BookingDetailResponse",
     "EditBookingRequest",
     "BookingListItem",

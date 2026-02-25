@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from backend.application.dtos import BookingDetailResponse
+from backend.application.dtos import BookingChargeItem, BookingDetailResponse
 from backend.ports.output.repositories import BookingRepository
 
 
@@ -19,13 +19,11 @@ class ViewBookingDetailUseCase:
 
     def execute(self, bl_reference: str) -> BookingDetailResponse | None:
         """Execute the use case."""
-        # Find booking
         booking = self.booking_repo.find_by_id(bl_reference)
 
         if not booking:
             return None
 
-        # Convert to DTO
         return BookingDetailResponse(
             id=booking.id,
             created_at=booking.created_at,
@@ -46,4 +44,30 @@ class ViewBookingDetailUseCase:
             commission=booking.calculate_agent_commission(self.commission_rate).amount,
             revenue_charge_count=len(booking.revenue_charges),
             cost_charge_count=len(booking.cost_charges),
+            revenue_charges=[
+                BookingChargeItem(
+                    invoice_id=charge.invoice_id,
+                    charge_category=charge.charge_category.value,
+                    provider_type=(
+                        charge.provider_type.value if charge.provider_type is not None else None
+                    ),
+                    container=charge.container,
+                    description=charge.description,
+                    amount=charge.amount.amount,
+                )
+                for charge in booking.revenue_charges
+            ],
+            cost_charges=[
+                BookingChargeItem(
+                    invoice_id=charge.invoice_id,
+                    charge_category=charge.charge_category.value,
+                    provider_type=(
+                        charge.provider_type.value if charge.provider_type is not None else None
+                    ),
+                    container=charge.container,
+                    description=charge.description,
+                    amount=charge.amount.amount,
+                )
+                for charge in booking.cost_charges
+            ],
         )

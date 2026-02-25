@@ -1,6 +1,7 @@
 """Pydantic schemas for API validation."""
 
 from backend.adapters.api.schemas.booking_schemas import (
+    BookingChargeItem,
     BookingDetailResponse,
     BookingListItem,
     ListBookingsParams,
@@ -46,6 +47,7 @@ __all__ = [
     "CommissionReportTotals",
     "ExportReportRequest",
     # Bookings
+    "BookingChargeItem",
     "BookingListItem",
     "ListBookingsParams",
     "ListBookingsResponse",

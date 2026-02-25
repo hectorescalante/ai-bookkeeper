@@ -106,10 +106,24 @@
               </td>
               <td class="px-4 py-3">
                 <Button
+                  v-if="isProcessable(document)"
                   size="small"
                   label="Process"
                   icon="pi pi-play"
-                  :disabled="!isProcessable(document) || isProcessingCurrentDocument"
+                  :disabled="isProcessingCurrentDocument"
+                  :loading="
+                    isProcessingCurrentDocument &&
+                    currentQueueDocumentId === document.id
+                  "
+                  @click="startSingleProcessing(document.id)"
+                />
+                <Button
+                  v-else-if="isReprocessable(document)"
+                  size="small"
+                  label="Reprocess"
+                  icon="pi pi-refresh"
+                  severity="secondary"
+                  :disabled="isProcessingCurrentDocument"
                   :loading="
                     isProcessingCurrentDocument &&
                     currentQueueDocumentId === document.id
@@ -383,6 +397,8 @@ import {
   fetchEmails,
   listDocuments,
   processDocument,
+  reprocessDocument,
+  retryDocument,
   type ChargeCategory,
   type ConfirmDocumentRequest,
   type DocumentListItem,
@@ -505,6 +521,9 @@ const formatDate = (value: string): string =>
 const isProcessable = (document: DocumentListItem): boolean =>
   document.status === "PENDING" || document.status === "ERROR";
 
+const isReprocessable = (document: DocumentListItem): boolean =>
+  document.status === "PROCESSED";
+
 const toggleDocumentSelection = (documentId: string): void => {
   if (selectedDocumentIds.value.includes(documentId)) {
     selectedDocumentIds.value = selectedDocumentIds.value.filter(
@@ -623,6 +642,9 @@ const showBatchSummaryToast = (): void => {
   });
 };
 
+const getDocumentStatus = (documentId: string): string | null =>
+  documents.value.find((document) => document.id === documentId)?.status ?? null;
+
 const loadNextQueueDocument = async (): Promise<void> => {
   const documentId = processingQueue.value[queueIndex.value];
   if (!documentId) {
@@ -637,7 +659,13 @@ const loadNextQueueDocument = async (): Promise<void> => {
 
   isProcessingCurrentDocument.value = true;
   try {
-    const result = await processDocument(documentId);
+    const status = getDocumentStatus(documentId);
+    const result =
+      status === "ERROR"
+        ? await retryDocument(documentId)
+        : status === "PROCESSED"
+          ? await reprocessDocument(documentId)
+        : await processDocument(documentId);
     reviewForm.value = mapProcessResponseToReviewForm(result);
     editedFields.value = [];
     showRawJson.value = false;

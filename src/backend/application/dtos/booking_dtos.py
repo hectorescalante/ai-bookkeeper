@@ -1,6 +1,6 @@
 """DTOs for booking use cases."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -19,6 +19,18 @@ class BookingListItem:
     margin: Decimal
     commission: Decimal
     document_count: int
+
+
+@dataclass(frozen=True)
+class BookingChargeItem:
+    """Single charge line in booking detail response."""
+
+    invoice_id: UUID
+    charge_category: str
+    provider_type: str | None
+    container: str | None
+    description: str
+    amount: Decimal
 
 
 @dataclass(frozen=True)
@@ -52,6 +64,8 @@ class BookingDetailResponse:
     # Charges (simplified for API)
     revenue_charge_count: int
     cost_charge_count: int
+    revenue_charges: list[BookingChargeItem] = field(default_factory=list)
+    cost_charges: list[BookingChargeItem] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
