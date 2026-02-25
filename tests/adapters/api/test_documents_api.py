@@ -84,9 +84,7 @@ def test_list_documents_with_limit(client: TestClient, sample_documents) -> None
 def test_list_documents_invalid_status(client: TestClient) -> None:
     """Test GET /api/documents with invalid status."""
     response = client.get("/api/documents?status=INVALID")
-
-    assert response.status_code == 400  # ValueError -> 400
-    assert "validation_error" in response.json()["error_type"]
+    assert response.status_code == 422
 
 
 def test_document_list_includes_email_info(client: TestClient, sample_documents) -> None:

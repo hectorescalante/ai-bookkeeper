@@ -1,6 +1,6 @@
 """Documents API routes."""
 
-from typing import Annotated, NoReturn
+from typing import Annotated, Literal, NoReturn
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -30,11 +30,15 @@ from backend.config.dependencies import (
 )
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+DocumentStatusFilter = Literal["PENDING", "PROCESSING", "PROCESSED", "ERROR"]
 
 
 @router.get("", response_model=ListDocumentsResponse, status_code=200)
 def list_documents(
-    status: Annotated[str | None, Query(description="Filter by status")] = None,
+    status: Annotated[
+        DocumentStatusFilter | None,
+        Query(description="Filter by status"),
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=500, description="Maximum results")] = 100,
     use_case: ListDocumentsUseCase = Depends(get_list_documents_use_case),
 ) -> ListDocumentsResponse:
