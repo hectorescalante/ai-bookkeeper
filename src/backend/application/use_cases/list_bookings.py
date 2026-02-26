@@ -37,11 +37,23 @@ class ListBookingsUseCase:
         # Query bookings
         bookings = self.booking_repo.list_all(filters=filters, sort=sort)
 
+        if request.client is not None:
+            normalized_client = request.client.strip().lower()
+            if normalized_client:
+                bookings = [
+                    booking
+                    for booking in bookings
+                    if booking.client is not None
+                    and normalized_client in booking.client.name.lower()
+                ]
+
         # Convert to DTOs
         items = [
             BookingListItem(
                 id=booking.id,
                 client_name=booking.client.name if booking.client else None,
+                pol_code=booking.pol.code if booking.pol else None,
+                pod_code=booking.pod.code if booking.pod else None,
                 created_at=booking.created_at,
                 status=booking.status.value,
                 total_revenue=booking.total_revenue.amount,

@@ -83,6 +83,14 @@
           <p class="font-semibold text-gray-800">{{ formatMoney(booking.margin) }}</p>
         </div>
         <div>
+          <p class="text-gray-500">Commission rate</p>
+          <p class="font-semibold text-gray-800">{{ formatPercent(booking.commission_rate) }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500">Agent commission</p>
+          <p class="font-semibold text-gray-800">{{ formatMoney(booking.agent_commission) }}</p>
+        </div>
+        <div>
           <p class="text-gray-500">Commission</p>
           <p class="font-semibold text-gray-800">{{ formatMoney(booking.commission) }}</p>
         </div>
@@ -160,6 +168,7 @@
                 <th class="px-3 py-2">Category</th>
                 <th class="px-3 py-2">Description</th>
                 <th class="px-3 py-2">Container</th>
+                <th class="px-3 py-2">Source PDF</th>
                 <th class="px-3 py-2 text-right">Amount</th>
               </tr>
             </thead>
@@ -172,6 +181,19 @@
                 <td class="px-3 py-2">{{ charge.charge_category }}</td>
                 <td class="px-3 py-2">{{ charge.description }}</td>
                 <td class="px-3 py-2">{{ charge.container ?? "—" }}</td>
+                <td class="px-3 py-2">
+                  <a
+                    v-if="resolveDocumentUrl(charge.source_document_url)"
+                    :href="resolveDocumentUrl(charge.source_document_url) ?? ''"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-600 hover:underline"
+                    @click.stop
+                  >
+                    Open
+                  </a>
+                  <span v-else>—</span>
+                </td>
                 <td class="px-3 py-2 text-right">{{ formatMoney(charge.amount) }}</td>
               </tr>
             </tbody>
@@ -185,6 +207,24 @@
         <p class="text-sm text-gray-700 mb-3">
           Count: <span class="font-semibold">{{ booking.cost_charge_count }}</span>
         </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 mb-3">
+          <div class="rounded bg-gray-50 px-3 py-2">
+            <p class="text-xs text-gray-500">Shipping</p>
+            <p class="font-semibold text-gray-800">{{ formatMoney(booking.cost_shipping) }}</p>
+          </div>
+          <div class="rounded bg-gray-50 px-3 py-2">
+            <p class="text-xs text-gray-500">Carrier</p>
+            <p class="font-semibold text-gray-800">{{ formatMoney(booking.cost_carrier) }}</p>
+          </div>
+          <div class="rounded bg-gray-50 px-3 py-2">
+            <p class="text-xs text-gray-500">Inspection</p>
+            <p class="font-semibold text-gray-800">{{ formatMoney(booking.cost_inspection) }}</p>
+          </div>
+          <div class="rounded bg-gray-50 px-3 py-2">
+            <p class="text-xs text-gray-500">Other</p>
+            <p class="font-semibold text-gray-800">{{ formatMoney(booking.cost_other) }}</p>
+          </div>
+        </div>
         <div
           v-if="booking.cost_charges.length > 0"
           class="overflow-x-auto border border-gray-200 rounded"
@@ -196,6 +236,7 @@
                 <th class="px-3 py-2">Category</th>
                 <th class="px-3 py-2">Description</th>
                 <th class="px-3 py-2">Container</th>
+                <th class="px-3 py-2">Source PDF</th>
                 <th class="px-3 py-2 text-right">Amount</th>
               </tr>
             </thead>
@@ -209,6 +250,19 @@
                 <td class="px-3 py-2">{{ charge.charge_category }}</td>
                 <td class="px-3 py-2">{{ charge.description }}</td>
                 <td class="px-3 py-2">{{ charge.container ?? "—" }}</td>
+                <td class="px-3 py-2">
+                  <a
+                    v-if="resolveDocumentUrl(charge.source_document_url)"
+                    :href="resolveDocumentUrl(charge.source_document_url) ?? ''"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-600 hover:underline"
+                    @click.stop
+                  >
+                    Open
+                  </a>
+                  <span v-else>—</span>
+                </td>
                 <td class="px-3 py-2 text-right">{{ formatMoney(charge.amount) }}</td>
               </tr>
             </tbody>
@@ -227,6 +281,7 @@ import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
 import { useRoute, useRouter } from "vue-router";
 import {
+  API_BASE_URL,
   exportBooking,
   getBookingDetail,
   markBookingComplete,
@@ -293,6 +348,21 @@ const formatDate = (value: string): string =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+const formatPercent = (value: string | number): string => {
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) {
+    return "0.00%";
+  }
+  return `${(numeric * 100).toFixed(2)}%`;
+};
+
+const resolveDocumentUrl = (url: string | null): string | null => {
+  if (!url) {
+    return null;
+  }
+  return url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+};
 
 const syncEditForm = (item: BookingDetailResponse): void => {
   editForm.value = {

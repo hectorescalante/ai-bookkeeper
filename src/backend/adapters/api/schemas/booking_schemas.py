@@ -12,6 +12,8 @@ class BookingListItem(BaseModel):
 
     id: str  # BL reference
     client_name: str | None
+    pol_code: str | None
+    pod_code: str | None
     created_at: datetime
     status: str
     total_revenue: Decimal
@@ -32,6 +34,7 @@ class ListBookingsParams(BaseModel):
     """Query parameters for list bookings endpoint."""
 
     client_id: UUID | None = Field(None, description="Filter by client ID")
+    client: str | None = Field(None, description="Filter by client name")
     status: str | None = Field(None, description="Filter by status (PENDING, COMPLETE)")
     date_from: str | None = Field(None, description="Filter by date from (ISO format)")
     date_to: str | None = Field(None, description="Filter by date to (ISO format)")
@@ -48,6 +51,7 @@ class BookingChargeItem(BaseModel):
     container: str | None
     description: str
     amount: Decimal
+    source_document_url: str | None = None
 
 
 class BookingDetailResponse(BaseModel):
@@ -73,8 +77,14 @@ class BookingDetailResponse(BaseModel):
     # Financial summary
     total_revenue: Decimal
     total_costs: Decimal
+    cost_shipping: Decimal
+    cost_carrier: Decimal
+    cost_inspection: Decimal
+    cost_other: Decimal
     margin: Decimal
     margin_percentage: Decimal
+    commission_rate: Decimal
+    agent_commission: Decimal
     commission: Decimal
 
     # Charges

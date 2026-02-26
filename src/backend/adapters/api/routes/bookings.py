@@ -49,6 +49,7 @@ class UpdateBookingRequest(BaseModel):
 @router.get("", response_model=ListBookingsResponse, status_code=200)
 def list_bookings(
     client_id: Annotated[UUID | None, Query(description="Filter by client ID")] = None,
+    client: Annotated[str | None, Query(description="Filter by client name")] = None,
     status: Annotated[
         BookingStatusFilter | None,
         Query(description="Filter by status"),
@@ -67,6 +68,7 @@ def list_bookings(
     # Map query params to DTO
     dto_request = ListBookingsRequest(
         client_id=client_id,
+        client=client,
         status=status,
         date_from=date_from.isoformat() if date_from is not None else None,
         date_to=date_to.isoformat() if date_to is not None else None,
@@ -83,6 +85,8 @@ def list_bookings(
             BookingListItem(
                 id=booking.id,
                 client_name=booking.client_name,
+                pol_code=booking.pol_code,
+                pod_code=booking.pod_code,
                 created_at=booking.created_at,
                 status=booking.status,
                 total_revenue=booking.total_revenue,
@@ -219,8 +223,14 @@ def _build_booking_detail_or_404(
         containers=result.containers,
         total_revenue=result.total_revenue,
         total_costs=result.total_costs,
+        cost_shipping=result.cost_shipping,
+        cost_carrier=result.cost_carrier,
+        cost_inspection=result.cost_inspection,
+        cost_other=result.cost_other,
         margin=result.margin,
         margin_percentage=result.margin_percentage,
+        commission_rate=result.commission_rate,
+        agent_commission=result.agent_commission,
         commission=result.commission,
         revenue_charge_count=result.revenue_charge_count,
         cost_charge_count=result.cost_charge_count,
@@ -232,6 +242,7 @@ def _build_booking_detail_or_404(
                 container=charge.container,
                 description=charge.description,
                 amount=charge.amount,
+                source_document_url=charge.source_document_url,
             )
             for charge in result.revenue_charges
         ],
@@ -243,6 +254,7 @@ def _build_booking_detail_or_404(
                 container=charge.container,
                 description=charge.description,
                 amount=charge.amount,
+                source_document_url=charge.source_document_url,
             )
             for charge in result.cost_charges
         ],

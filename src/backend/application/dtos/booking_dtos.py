@@ -12,6 +12,8 @@ class BookingListItem:
 
     id: str  # BL reference
     client_name: str | None
+    pol_code: str | None
+    pod_code: str | None
     created_at: datetime
     status: str
     total_revenue: Decimal
@@ -31,6 +33,7 @@ class BookingChargeItem:
     container: str | None
     description: str
     amount: Decimal
+    source_document_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -57,8 +60,14 @@ class BookingDetailResponse:
     # Financial summary
     total_revenue: Decimal
     total_costs: Decimal
+    cost_shipping: Decimal
+    cost_carrier: Decimal
+    cost_inspection: Decimal
+    cost_other: Decimal
     margin: Decimal
     margin_percentage: Decimal
+    commission_rate: Decimal
+    agent_commission: Decimal
     commission: Decimal
 
     # Charges (simplified for API)
@@ -73,6 +82,7 @@ class ListBookingsRequest:
     """Request to list bookings with filters."""
 
     client_id: UUID | None = None
+    client: str | None = None
     status: str | None = None
     date_from: str | None = None
     date_to: str | None = None

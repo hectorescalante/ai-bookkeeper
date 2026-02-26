@@ -77,6 +77,7 @@ export interface BookingChargeItem {
   container: string | null;
   description: string;
   amount: string | number;
+  source_document_url: string | null;
 }
 
 export interface ListDocumentsResponse {
@@ -152,6 +153,8 @@ export interface OutlookDisconnectResponse {
 export interface BookingListItem {
   id: string;
   client_name: string | null;
+  pol_code: string | null;
+  pod_code: string | null;
   created_at: string;
   status: BookingStatus;
   total_revenue: string | number;
@@ -181,8 +184,14 @@ export interface BookingDetailResponse {
   containers: string[];
   total_revenue: string | number;
   total_costs: string | number;
+  cost_shipping: string | number;
+  cost_carrier: string | number;
+  cost_inspection: string | number;
+  cost_other: string | number;
   margin: string | number;
   margin_percentage: string | number;
+  commission_rate: string | number;
+  agent_commission: string | number;
   commission: string | number;
   revenue_charge_count: number;
   cost_charge_count: number;
@@ -408,6 +417,7 @@ export const confirmDocument = (payload: ConfirmDocumentRequest) =>
 
 export const listBookings = (params?: {
   client_id?: string;
+  client?: string;
   status?: BookingStatus;
   date_from?: string;
   date_to?: string;

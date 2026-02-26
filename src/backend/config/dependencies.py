@@ -158,13 +158,18 @@ def get_list_invoices_use_case(
 
 def get_view_booking_detail_use_case(
     booking_repo: Annotated[BookingRepository, Depends(get_booking_repository)],
+    invoice_repo: Annotated[InvoiceRepository, Depends(get_invoice_repository)],
     company_repo: Annotated[CompanyRepository, Depends(get_company_repository)],
 ) -> ViewBookingDetailUseCase:
     """Get view booking detail use case instance."""
     # Get commission rate from company config, default to 50%
     company = company_repo.get()
     commission_rate = company.agent_commission_rate if company else Decimal("0.50")
-    return ViewBookingDetailUseCase(booking_repo, commission_rate)
+    return ViewBookingDetailUseCase(
+        booking_repo=booking_repo,
+        invoice_repo=invoice_repo,
+        company_commission_rate=commission_rate,
+    )
 
 
 def get_edit_booking_use_case(

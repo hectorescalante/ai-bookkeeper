@@ -15,16 +15,23 @@ from backend.domain.value_objects import BookingCharge, ClientInfo, Money
 @pytest.fixture
 def _sample_bookings(db_session):
     """Create sample bookings for testing."""
-    from datetime import datetime
+    from datetime import date, datetime
     from uuid import uuid4
 
-    from backend.adapters.persistence.models.party import ClientModel
+    from backend.adapters.persistence.models.party import ClientModel, ProviderModel
     from backend.adapters.persistence.repositories.booking_repository import (
         SqlAlchemyBookingRepository,
     )
+    from backend.adapters.persistence.repositories.invoice_repository import (
+        SqlAlchemyInvoiceRepository,
+    )
+    from backend.domain.entities.invoice import ClientInvoice, ProviderInvoice
+    from backend.domain.value_objects.document import DocumentReference, FileHash
+    from backend.domain.value_objects.identifiers import Port
 
     client_id1 = uuid4()
     client_id2 = uuid4()
+    provider_id = uuid4()
 
     client1 = ClientModel(
         id=client_id1, name="Client A", nif="B12345678", created_at=datetime.now()
@@ -32,9 +39,17 @@ def _sample_bookings(db_session):
     client2 = ClientModel(
         id=client_id2, name="Client B", nif="B87654321", created_at=datetime.now()
     )
+    provider = ProviderModel(
+        id=provider_id,
+        name="Carrier A",
+        nif="A12345678",
+        provider_type="CARRIER",
+        created_at=datetime.now(),
+    )
 
     db_session.add(client1)
     db_session.add(client2)
+    db_session.add(provider)
     db_session.commit()
 
     # Now create bookings
@@ -43,6 +58,7 @@ def _sample_bookings(db_session):
     # Create booking with charges
     booking1 = Booking.create("BL-2024-001")
     booking1.update_client(ClientInfo(client_id1, "Client A", "B12345678"))
+    booking1.update_ports(pol=Port(code="CNSHA", name="Shanghai"), pod=Port(code="ESVLC", name="Valencia"))
     invoice_id1 = uuid4()
     invoice_id2 = uuid4()
     invoice_id3 = uuid4()
@@ -86,9 +102,50 @@ def _sample_bookings(db_session):
     )
     repo.save(booking2)
 
+    invoice_repo = SqlAlchemyInvoiceRepository(db_session)
+    revenue_source_document_id = uuid4()
+    cost_source_document_id = uuid4()
+
+    client_invoice = ClientInvoice.create(
+        invoice_number="INV-CLIENT-001",
+        client_id=client_id1,
+        invoice_date=date(2024, 1, 10),
+        bl_reference="BL-2024-001",
+        total_amount=Money(Decimal("1000.00")),
+        tax_amount=Money(Decimal("0.00")),
+    )
+    client_invoice.id = invoice_id1
+    client_invoice.source_document = DocumentReference(
+        document_id=revenue_source_document_id,
+        filename="client-001.pdf",
+        file_hash=FileHash.sha256("client-invoice-hash"),
+    )
+    invoice_repo.save_client_invoice(client_invoice)
+
+    provider_invoice = ProviderInvoice.create(
+        invoice_number="INV-PROVIDER-001",
+        provider_id=provider_id,
+        provider_type=ProviderType.CARRIER,
+        invoice_date=date(2024, 1, 11),
+        bl_references=["BL-2024-001"],
+        total_amount=Money(Decimal("600.00")),
+        tax_amount=Money(Decimal("0.00")),
+    )
+    provider_invoice.id = invoice_id2
+    provider_invoice.source_document = DocumentReference(
+        document_id=cost_source_document_id,
+        filename="provider-001.pdf",
+        file_hash=FileHash.sha256("provider-invoice-hash"),
+    )
+    invoice_repo.save_provider_invoice(provider_invoice)
+
     # Commit to ensure data is persisted
     db_session.commit()
-    return [booking1, booking2]
+    return {
+        "bookings": [booking1, booking2],
+        "revenue_source_document_id": str(revenue_source_document_id),
+        "cost_source_document_id": str(cost_source_document_id),
+    }
 
 
 def test_list_all_bookings(client: TestClient, _sample_bookings) -> None:
@@ -153,6 +210,18 @@ def test_booking_list_includes_financial_summary(
     assert Decimal(booking["margin"]) == Decimal("400.00")
     assert Decimal(booking["commission"]) == Decimal("200.00")  # 50% of margin
     assert booking["document_count"] == 2  # 1 revenue + 1 cost
+    assert booking["pol_code"] == "CNSHA"
+    assert booking["pod_code"] == "ESVLC"
+
+
+def test_list_bookings_by_client_name(client: TestClient, _sample_bookings) -> None:
+    """Test GET /api/bookings with client text filter."""
+    response = client.get("/api/bookings?client=client%20a")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["bookings"][0]["id"] == "BL-2024-001"
 
 
 def test_get_booking_detail(client: TestClient, _sample_bookings) -> None:
@@ -166,7 +235,13 @@ def test_get_booking_detail(client: TestClient, _sample_bookings) -> None:
     assert data["client_nif"] == "B12345678"
     assert Decimal(data["total_revenue"]) == Decimal("1000.00")
     assert Decimal(data["total_costs"]) == Decimal("600.00")
+    assert Decimal(data["cost_shipping"]) == Decimal("0")
+    assert Decimal(data["cost_carrier"]) == Decimal("600.00")
+    assert Decimal(data["cost_inspection"]) == Decimal("0")
+    assert Decimal(data["cost_other"]) == Decimal("0")
     assert Decimal(data["margin"]) == Decimal("400.00")
+    assert Decimal(data["commission_rate"]) == Decimal("0.50")
+    assert Decimal(data["agent_commission"]) == Decimal("200.00")
     assert data["revenue_charge_count"] == 1
     assert data["cost_charge_count"] == 1
     assert len(data["revenue_charges"]) == 1
@@ -178,6 +253,10 @@ def test_get_booking_detail(client: TestClient, _sample_bookings) -> None:
     assert revenue_charge["container"] == "CONT001"
     assert revenue_charge["description"] == "Ocean Freight"
     assert Decimal(revenue_charge["amount"]) == Decimal("1000.00")
+    assert (
+        revenue_charge["source_document_url"]
+        == f"/api/documents/{_sample_bookings['revenue_source_document_id']}/file"
+    )
 
     cost_charge = data["cost_charges"][0]
     assert cost_charge["charge_category"] == "FREIGHT"
@@ -185,6 +264,10 @@ def test_get_booking_detail(client: TestClient, _sample_bookings) -> None:
     assert cost_charge["container"] == "CONT001"
     assert cost_charge["description"] == "Carrier Cost"
     assert Decimal(cost_charge["amount"]) == Decimal("600.00")
+    assert (
+        cost_charge["source_document_url"]
+        == f"/api/documents/{_sample_bookings['cost_source_document_id']}/file"
+    )
 
 
 def test_get_booking_detail_not_found(client: TestClient) -> None:
