@@ -9,6 +9,7 @@ from backend.application.dtos import (
     CommissionReportResponse,
     CommissionReportTotals,
 )
+from backend.domain.entities.booking import Booking
 from backend.domain.enums import BookingStatus
 from backend.ports.output.repositories import (
     BookingFilters,
@@ -41,6 +42,7 @@ class GenerateCommissionReportUseCase:
         )
         sort = BookingSort(field="created_at", descending=False)
         bookings = self.booking_repo.list_all(filters=filters, sort=sort)
+        bookings = self._apply_extended_filters(bookings, request)
 
         company = self.company_repo.get()
         commission_rate = company.agent_commission_rate if company else Decimal("0.50")
@@ -68,6 +70,30 @@ class GenerateCommissionReportUseCase:
         )
         return CommissionReportResponse(items=rows, totals=totals)
 
+    def _apply_extended_filters(
+        self,
+        bookings: list[Booking],
+        request: CommissionReportRequest,
+    ) -> list[Booking]:
+        client_filter = (request.client or "").strip().lower()
+        booking_filter = (request.booking or "").strip().lower()
+        invoice_type = self._parse_invoice_type(request.invoice_type)
+
+        filtered: list[Booking] = []
+        for booking in bookings:
+            client_name = booking.client.name if booking.client else ""
+            if client_filter and client_filter not in client_name.lower():
+                continue
+            if booking_filter and booking_filter not in booking.id.lower():
+                continue
+            if invoice_type == "CLIENT_INVOICE" and not booking.revenue_charges:
+                continue
+            if invoice_type == "PROVIDER_INVOICE" and not booking.cost_charges:
+                continue
+            filtered.append(booking)
+
+        return filtered
+
     @staticmethod
     def _parse_status(status: str | None) -> BookingStatus | None:
         if status is None or not status.strip():
@@ -84,3 +110,12 @@ class GenerateCommissionReportUseCase:
         parsed_to = date.fromisoformat(date_to) if date_to else None
         if parsed_from and parsed_to and parsed_from > parsed_to:
             raise ValueError("date_from cannot be greater than date_to")
+
+    @staticmethod
+    def _parse_invoice_type(invoice_type: str | None) -> str | None:
+        if invoice_type is None or not invoice_type.strip():
+            return None
+        normalized = invoice_type.strip().upper()
+        if normalized not in {"CLIENT_INVOICE", "PROVIDER_INVOICE"}:
+            raise ValueError(f"Invalid invoice_type: {invoice_type}")
+        return normalized

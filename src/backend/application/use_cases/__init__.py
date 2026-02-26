@@ -13,6 +13,7 @@ from backend.application.use_cases.generate_commission_report import (
 from backend.application.use_cases.generate_excel_report import GenerateExcelReportUseCase
 from backend.application.use_cases.list_bookings import ListBookingsUseCase
 from backend.application.use_cases.list_documents import ListDocumentsUseCase
+from backend.application.use_cases.list_invoices import ListInvoicesUseCase
 from backend.application.use_cases.mark_booking_complete import MarkBookingCompleteUseCase
 from backend.application.use_cases.process_invoice import ProcessInvoiceUseCase
 from backend.application.use_cases.view_booking_detail import ViewBookingDetailUseCase
@@ -29,6 +30,7 @@ __all__ = [
     "GenerateExcelReportUseCase",
     "ListDocumentsUseCase",
     "ListBookingsUseCase",
+    "ListInvoicesUseCase",
     "MarkBookingCompleteUseCase",
     "ProcessInvoiceUseCase",
     "ViewBookingDetailUseCase",

@@ -1,5 +1,5 @@
 """Integration tests for invoice processing API endpoints."""
-
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -8,8 +8,18 @@ from fastapi.testclient import TestClient
 from backend.adapters.persistence.repositories.document_repository import (
     SqlAlchemyDocumentRepository,
 )
+from backend.adapters.persistence.repositories.invoice_repository import (
+    SqlAlchemyInvoiceRepository,
+)
+from backend.adapters.persistence.repositories.party_repositories import (
+    SqlAlchemyClientRepository,
+    SqlAlchemyProviderRepository,
+)
 from backend.domain.entities.document import Document
-from backend.domain.value_objects import FileHash
+from backend.domain.entities.invoice import ClientInvoice, ProviderInvoice
+from backend.domain.entities.party import Client, Provider
+from backend.domain.enums import ProviderType
+from backend.domain.value_objects import FileHash, Money
 
 
 @pytest.fixture
@@ -319,3 +329,81 @@ def test_confirm_document_invalid_charge_category_returns_422(
 
     assert response.status_code == 422
     assert "category" in str(response.json()["detail"])
+
+
+@pytest.fixture
+def sample_persisted_invoices(db_session):
+    """Create persisted client/provider invoices for search endpoint tests."""
+    client_repo = SqlAlchemyClientRepository(db_session)
+    provider_repo = SqlAlchemyProviderRepository(db_session)
+    invoice_repo = SqlAlchemyInvoiceRepository(db_session)
+
+    client = Client.create(nif="C12345678", name="Acme Trading")
+    provider = Provider.create(
+        nif="P12345678",
+        provider_type=ProviderType.CARRIER,
+        name="Ocean Carrier",
+    )
+    client_repo.save(client)
+    provider_repo.save(provider)
+
+    client_invoice = ClientInvoice.create(
+        invoice_number="INV-C-001",
+        client_id=client.id,
+        invoice_date=date(2024, 1, 10),
+        bl_reference="BL-SEARCH-001",
+        total_amount=Money(Decimal("1000.00")),
+        tax_amount=Money(Decimal("0.00")),
+    )
+    provider_invoice = ProviderInvoice.create(
+        invoice_number="INV-P-001",
+        provider_id=provider.id,
+        provider_type=ProviderType.CARRIER,
+        invoice_date=date(2024, 1, 12),
+        bl_references=["BL-SEARCH-001", "BL-SEARCH-002"],
+        total_amount=Money(Decimal("650.00")),
+        tax_amount=Money(Decimal("0.00")),
+    )
+    invoice_repo.save_client_invoice(client_invoice)
+    invoice_repo.save_provider_invoice(provider_invoice)
+    return client_invoice, provider_invoice
+
+
+def test_list_invoices_returns_client_and_provider_rows(
+    client: TestClient, sample_persisted_invoices
+) -> None:
+    """Test invoice search returns unified rows across both invoice types."""
+    _ = sample_persisted_invoices
+    response = client.get("/api/invoices")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 2
+    invoice_types = {row["invoice_type"] for row in payload["invoices"]}
+    assert invoice_types == {"CLIENT_INVOICE", "PROVIDER_INVOICE"}
+
+
+def test_list_invoices_filters_by_number_party_and_type(
+    client: TestClient, sample_persisted_invoices
+) -> None:
+    """Test invoice search filters by number/party/type are applied."""
+    _ = sample_persisted_invoices
+    response = client.get(
+        "/api/invoices?invoice_number=INV-P&party=ocean&invoice_type=PROVIDER_INVOICE"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    item = payload["invoices"][0]
+    assert item["invoice_number"] == "INV-P-001"
+    assert item["party_name"] == "Ocean Carrier"
+    assert item["booking_references"] == ["BL-SEARCH-001", "BL-SEARCH-002"]
+    assert item["total_amount"] == "650.00"
+
+
+def test_list_invoices_invalid_date_range_returns_400(client: TestClient) -> None:
+    """Test invoice search rejects invalid date range."""
+    response = client.get("/api/invoices?date_from=2024-02-01&date_to=2024-01-01")
+    assert response.status_code == 400
+    assert "date_from cannot be greater than date_to" in response.json()["detail"]

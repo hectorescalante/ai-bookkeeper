@@ -30,6 +30,7 @@ from backend.adapters.api.schemas.report_schemas import (
     CommissionReportResponse,
     CommissionReportTotals,
     ExportReportRequest,
+    SaveExportResponse,
 )
 
 __all__ = [
@@ -54,6 +55,7 @@ __all__ = [
     "CommissionReportResponse",
     "CommissionReportTotals",
     "ExportReportRequest",
+    "SaveExportResponse",
     # Bookings
     "BookingChargeItem",
     "BookingListItem",

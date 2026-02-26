@@ -1,6 +1,8 @@
 """DTOs for invoice processing use cases."""
 
 from dataclasses import dataclass, field
+from datetime import date
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -96,3 +98,28 @@ class ConfirmInvoiceResponse:
     document_type: str
     status: str
     booking_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ListInvoicesRequest:
+    """Request to list/search persisted invoices."""
+
+    invoice_number: str | None = None
+    party: str | None = None
+    date_from: str | None = None
+    date_to: str | None = None
+    invoice_type: str | None = None
+    limit: int = 100
+
+
+@dataclass(frozen=True)
+class InvoiceListItem:
+    """Unified invoice row for search results."""
+
+    id: UUID
+    invoice_type: str
+    invoice_number: str
+    invoice_date: date
+    party_name: str | None
+    booking_references: list[str]
+    total_amount: Decimal

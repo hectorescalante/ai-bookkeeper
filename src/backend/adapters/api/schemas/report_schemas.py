@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 BookingStatusFilter = Literal["PENDING", "COMPLETE"]
+ReportInvoiceTypeFilter = Literal["CLIENT_INVOICE", "PROVIDER_INVOICE"]
 
 class CommissionReportRequest(BaseModel):
     """Request body for commission report generation."""
@@ -14,6 +15,12 @@ class CommissionReportRequest(BaseModel):
     date_from: date | None = Field(None, description="Start date (YYYY-MM-DD)")
     date_to: date | None = Field(None, description="End date (YYYY-MM-DD)")
     status: BookingStatusFilter | None = Field(None, description="Booking status filter")
+    client: str | None = Field(None, description="Filter by client name")
+    booking: str | None = Field(None, description="Filter by booking reference")
+    invoice_type: ReportInvoiceTypeFilter | None = Field(
+        None,
+        description="Filter by invoice type (CLIENT_INVOICE or PROVIDER_INVOICE)",
+    )
 
 
 class CommissionReportItem(BaseModel):
@@ -52,4 +59,17 @@ class ExportReportRequest(BaseModel):
     date_from: date | None = Field(None, description="Start date (YYYY-MM-DD)")
     date_to: date | None = Field(None, description="End date (YYYY-MM-DD)")
     status: BookingStatusFilter | None = Field(None, description="Booking status filter")
+    client: str | None = Field(None, description="Filter by client name")
+    booking: str | None = Field(None, description="Filter by booking reference")
+    invoice_type: ReportInvoiceTypeFilter | None = Field(
+        None,
+        description="Filter by invoice type (CLIENT_INVOICE or PROVIDER_INVOICE)",
+    )
     file_name: str | None = Field(None, description="Optional export filename")
+
+
+class SaveExportResponse(BaseModel):
+    """Response for reports saved to configured default path."""
+
+    file_name: str
+    saved_path: str

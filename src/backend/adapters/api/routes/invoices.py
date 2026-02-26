@@ -1,27 +1,32 @@
 """Invoice processing API routes."""
 
 from datetime import date
+from decimal import Decimal
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.application.dtos.invoice_dtos import (
     ConfirmInvoiceRequest,
+    ListInvoicesRequest,
     ProcessInvoiceRequest,
     SaveChargeInput,
 )
 from backend.application.use_cases.confirm_invoice import ConfirmInvoiceUseCase
+from backend.application.use_cases.list_invoices import ListInvoicesUseCase
 from backend.application.use_cases.process_invoice import ProcessInvoiceUseCase
 from backend.config.dependencies import (
     get_confirm_invoice_use_case,
+    get_list_invoices_use_case,
     get_process_invoice_use_case,
 )
 from backend.domain.enums import ChargeCategory, ProviderType
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 InvoiceDocumentType = Literal["CLIENT_INVOICE", "PROVIDER_INVOICE", "OTHER"]
+InvoiceSearchType = Literal["CLIENT_INVOICE", "PROVIDER_INVOICE"]
 
 
 class ProcessDocumentRequest(BaseModel):
@@ -104,6 +109,70 @@ class ConfirmDocumentResponse(BaseModel):
     document_type: str
     status: str
     booking_ids: list[str] = Field(default_factory=list)
+
+
+class InvoiceListItem(BaseModel):
+    """Invoice summary for search/list view."""
+
+    id: UUID
+    invoice_type: str
+    invoice_number: str
+    invoice_date: date
+    party_name: str | None
+    booking_references: list[str]
+    total_amount: Decimal
+
+
+class ListInvoicesResponse(BaseModel):
+    """Response for invoice search endpoint."""
+
+    invoices: list[InvoiceListItem]
+    total: int
+
+
+@router.get("", response_model=ListInvoicesResponse, status_code=200)
+def list_invoices(
+    invoice_number: Annotated[str | None, Query(description="Filter by invoice number")] = None,
+    party: Annotated[str | None, Query(description="Filter by client/provider name")] = None,
+    date_from: Annotated[date | None, Query(description="Date from (ISO)")] = None,
+    date_to: Annotated[date | None, Query(description="Date to (ISO)")] = None,
+    invoice_type: Annotated[
+        InvoiceSearchType | None,
+        Query(description="Filter by invoice type"),
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=500, description="Maximum results")] = 100,
+    use_case: ListInvoicesUseCase = Depends(get_list_invoices_use_case),
+) -> ListInvoicesResponse:
+    """Search persisted invoices by number, party, date range, and type."""
+    try:
+        items = use_case.execute(
+            ListInvoicesRequest(
+                invoice_number=invoice_number,
+                party=party,
+                date_from=date_from.isoformat() if date_from else None,
+                date_to=date_to.isoformat() if date_to else None,
+                invoice_type=invoice_type,
+                limit=limit,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return ListInvoicesResponse(
+        invoices=[
+            InvoiceListItem(
+                id=item.id,
+                invoice_type=item.invoice_type,
+                invoice_number=item.invoice_number,
+                invoice_date=item.invoice_date,
+                party_name=item.party_name,
+                booking_references=item.booking_references,
+                total_amount=item.total_amount,
+            )
+            for item in items
+        ],
+        total=len(items),
+    )
 
 
 @router.post("/process", response_model=ProcessDocumentResponse, status_code=200)

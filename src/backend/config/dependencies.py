@@ -31,6 +31,7 @@ from backend.application.use_cases import (
     GenerateExcelReportUseCase,
     ListBookingsUseCase,
     ListDocumentsUseCase,
+    ListInvoicesUseCase,
     MarkBookingCompleteUseCase,
     ViewBookingDetailUseCase,
 )
@@ -140,6 +141,19 @@ def get_list_bookings_use_case(
     company = company_repo.get()
     commission_rate = company.agent_commission_rate if company else Decimal("0.50")
     return ListBookingsUseCase(booking_repo, commission_rate)
+
+
+def get_list_invoices_use_case(
+    invoice_repo: Annotated[InvoiceRepository, Depends(get_invoice_repository)],
+    client_repo: Annotated[ClientRepository, Depends(get_client_repository)],
+    provider_repo: Annotated[ProviderRepository, Depends(get_provider_repository)],
+) -> ListInvoicesUseCase:
+    """Get list invoices use case instance."""
+    return ListInvoicesUseCase(
+        invoice_repo=invoice_repo,
+        client_repo=client_repo,
+        provider_repo=provider_repo,
+    )
 
 
 def get_view_booking_detail_use_case(

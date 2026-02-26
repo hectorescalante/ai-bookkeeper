@@ -283,11 +283,30 @@ export interface ConfirmDocumentResponse {
 export type DocumentStatus = "PENDING" | "PROCESSING" | "PROCESSED" | "ERROR";
 export type DocumentType = "CLIENT_INVOICE" | "PROVIDER_INVOICE" | "OTHER";
 export type BookingStatus = "PENDING" | "COMPLETE";
+export type ReportInvoiceType = "CLIENT_INVOICE" | "PROVIDER_INVOICE";
+
+export interface InvoiceListItem {
+  id: string;
+  invoice_type: ReportInvoiceType;
+  invoice_number: string;
+  invoice_date: string;
+  party_name: string | null;
+  booking_references: string[];
+  total_amount: string | number;
+}
+
+export interface ListInvoicesResponse {
+  invoices: InvoiceListItem[];
+  total: number;
+}
 
 export interface CommissionReportRequest {
   date_from?: string | null;
   date_to?: string | null;
   status?: BookingStatus | null;
+  client?: string | null;
+  booking?: string | null;
+  invoice_type?: ReportInvoiceType | null;
 }
 
 export interface CommissionReportItem {
@@ -317,6 +336,11 @@ export interface CommissionReportResponse {
 export interface FileDownloadResponse {
   blob: Blob;
   file_name: string;
+}
+
+export interface SavedReportResponse {
+  file_name: string;
+  saved_path: string;
 }
 
 export const listDocuments = (params?: {
@@ -394,6 +418,18 @@ export const listBookings = (params?: {
     params,
   });
 
+export const listInvoices = (params?: {
+  invoice_number?: string;
+  party?: string;
+  date_from?: string;
+  date_to?: string;
+  invoice_type?: ReportInvoiceType;
+  limit?: number;
+}) =>
+  api.get<ListInvoicesResponse>("/invoices", {
+    params,
+  });
+
 export const getBookingDetail = (bookingId: string) =>
   api.get<BookingDetailResponse>(`/bookings/${encodeURIComponent(bookingId)}`);
 
@@ -468,5 +504,9 @@ export const exportCommissionReport = async (
     ),
   } satisfies FileDownloadResponse;
 };
+
+export const saveCommissionReportToDefaultPath = (
+  payload: CommissionReportRequest & { file_name?: string | null }
+) => api.post<SavedReportResponse>("/reports/export/save", payload);
 
 export default api;

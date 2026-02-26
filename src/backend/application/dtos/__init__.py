@@ -24,6 +24,8 @@ from backend.application.dtos.document_dtos import (
 from backend.application.dtos.invoice_dtos import (
     ConfirmInvoiceRequest,
     ConfirmInvoiceResponse,
+    InvoiceListItem,
+    ListInvoicesRequest,
     ProcessInvoiceRequest,
     ProcessInvoiceResponse,
     SaveChargeInput,
@@ -50,6 +52,8 @@ __all__ = [
     "FetchEmailsResponse",
     "ConfirmInvoiceRequest",
     "ConfirmInvoiceResponse",
+    "InvoiceListItem",
+    "ListInvoicesRequest",
     "CommissionReportItem",
     "CommissionReportRequest",
     "CommissionReportResponse",

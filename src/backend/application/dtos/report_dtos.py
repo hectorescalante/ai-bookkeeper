@@ -12,6 +12,9 @@ class CommissionReportRequest:
     date_from: str | None = None
     date_to: str | None = None
     status: str | None = None
+    client: str | None = None
+    booking: str | None = None
+    invoice_type: str | None = None
 
 
 @dataclass(frozen=True)
