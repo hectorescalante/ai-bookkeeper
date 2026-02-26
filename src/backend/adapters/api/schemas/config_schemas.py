@@ -11,6 +11,8 @@ class CompanyRequest(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=200, description="Company name")
     nif: str = Field(..., min_length=1, max_length=50, description="Tax ID (NIF)")
+    address: str = Field("", max_length=500, description="Company address")
+    contact_info: str = Field("", max_length=500, description="Company contact information")
     commission_rate: Decimal = Field(..., ge=0, le=1, description="Agent commission rate (0.0-1.0)")
 
 
@@ -20,6 +22,8 @@ class CompanyResponse(BaseModel):
     id: UUID
     name: str
     nif: str
+    address: str
+    contact_info: str
     commission_rate: Decimal
     is_configured: bool
 

@@ -75,6 +75,8 @@ class SqlAlchemyBookingRepository(BookingRepository):
         if filters:
             if filters.client_id:
                 query = query.filter(BookingModel.client_id == filters.client_id)
+            if filters.booking:
+                query = query.filter(BookingModel.id.ilike(f"%{filters.booking}%"))
             if filters.status:
                 query = query.filter(BookingModel.status == filters.status.value)
             if filters.date_from:

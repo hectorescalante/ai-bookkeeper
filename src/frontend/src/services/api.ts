@@ -119,12 +119,16 @@ export interface CompanyResponse {
   id: string;
   name: string;
   nif: string;
+  address: string;
+  contact_info: string;
   commission_rate: string | number;
   is_configured: boolean;
 }
 
 export interface ConfigureCompanyRequest {
   name: string;
+  address: string;
+  contact_info: string;
   nif: string;
   commission_rate: string | number;
 }
@@ -418,6 +422,7 @@ export const confirmDocument = (payload: ConfirmDocumentRequest) =>
 export const listBookings = (params?: {
   client_id?: string;
   client?: string;
+  booking?: string;
   status?: BookingStatus;
   date_from?: string;
   date_to?: string;

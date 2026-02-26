@@ -35,6 +35,7 @@ class ListBookingsParams(BaseModel):
 
     client_id: UUID | None = Field(None, description="Filter by client ID")
     client: str | None = Field(None, description="Filter by client name")
+    booking: str | None = Field(None, description="Filter by booking ID")
     status: str | None = Field(None, description="Filter by status (PENDING, COMPLETE)")
     date_from: str | None = Field(None, description="Filter by date from (ISO format)")
     date_to: str | None = Field(None, description="Filter by date to (ISO format)")

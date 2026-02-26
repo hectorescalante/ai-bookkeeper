@@ -17,6 +17,8 @@ class CompanyModel(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     nif: Mapped[str] = mapped_column(String(50), nullable=False, default="")
+    address: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    contact_info: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     agent_commission_rate: Mapped[Decimal] = mapped_column(
         Numeric(5, 4), nullable=False, default=Decimal("0.50")
     )

@@ -11,6 +11,8 @@ class ConfigureCompanyRequest:
 
     name: str
     nif: str
+    address: str = ""
+    contact_info: str = ""
     commission_rate: Decimal = Decimal("0.50")
 
 
@@ -21,6 +23,8 @@ class CompanyResponse:
     id: UUID
     name: str
     nif: str
+    address: str
+    contact_info: str
     commission_rate: Decimal
     is_configured: bool
 

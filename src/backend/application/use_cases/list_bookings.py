@@ -21,8 +21,10 @@ class ListBookingsUseCase:
     def execute(self, request: ListBookingsRequest) -> list[BookingListItem]:
         """Execute the use case."""
         # Build filters
+        booking_filter = request.booking.strip() if request.booking else None
         filters = BookingFilters(
             client_id=request.client_id,
+            booking=booking_filter or None,
             status=BookingStatus[request.status.upper()] if request.status else None,
             date_from=request.date_from,
             date_to=request.date_to,

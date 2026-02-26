@@ -377,6 +377,8 @@ class TestCompany:
         )
         assert company.name == "My Company"
         assert company.nif == "A12345678"
+        assert company.address == ""
+        assert company.contact_info == ""
         assert company.agent_commission_rate == Decimal("0.50")
 
     def test_company_nif_normalized(self) -> None:
@@ -398,8 +400,15 @@ class TestCompany:
     def test_company_update(self) -> None:
         """Test updating company info."""
         company = Company.create(name="My Company", nif="A12345678")
-        company.update(name="Updated Company", commission_rate=Decimal("0.40"))
+        company.update(
+            name="Updated Company",
+            address="Marina Street 10",
+            contact_info="sales@my-company.com",
+            commission_rate=Decimal("0.40"),
+        )
         assert company.name == "Updated Company"
+        assert company.address == "Marina Street 10"
+        assert company.contact_info == "sales@my-company.com"
         assert company.agent_commission_rate == Decimal("0.40")
 
 

@@ -21,6 +21,8 @@ class ConfigureCompanyUseCase:
             company.update(
                 name=request.name,
                 nif=request.nif,
+                address=request.address,
+                contact_info=request.contact_info,
                 commission_rate=request.commission_rate,
             )
         else:
@@ -28,6 +30,8 @@ class ConfigureCompanyUseCase:
             company = Company.create(
                 name=request.name,
                 nif=request.nif,
+                address=request.address,
+                contact_info=request.contact_info,
                 commission_rate=request.commission_rate,
             )
 
@@ -37,6 +41,8 @@ class ConfigureCompanyUseCase:
             id=company.id,
             name=company.name,
             nif=company.nif,
+            address=company.address,
+            contact_info=company.contact_info,
             commission_rate=company.agent_commission_rate,
             is_configured=company.is_configured,
         )
@@ -52,6 +58,8 @@ class ConfigureCompanyUseCase:
             id=company.id,
             name=company.name,
             nif=company.nif,
+            address=company.address,
+            contact_info=company.contact_info,
             commission_rate=company.agent_commission_rate,
             is_configured=company.is_configured,
         )

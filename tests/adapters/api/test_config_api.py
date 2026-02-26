@@ -18,12 +18,13 @@ class _StubAIExtractor:
 
 def test_configure_company(client: TestClient) -> None:
     """Test POST /api/config/company."""
-    # Configure company
     response = client.post(
         "/api/config/company",
         json={
             "name": "Test Company S.L.",
             "nif": "B12345678",
+            "address": "Calle Mayor 1, Madrid",
+            "contact_info": "info@test-company.com",
             "commission_rate": "0.50",
         },
     )
@@ -32,6 +33,8 @@ def test_configure_company(client: TestClient) -> None:
     data = response.json()
     assert data["name"] == "Test Company S.L."
     assert data["nif"] == "B12345678"
+    assert data["address"] == "Calle Mayor 1, Madrid"
+    assert data["contact_info"] == "info@test-company.com"
     assert Decimal(data["commission_rate"]) == Decimal("0.50")
     assert data["is_configured"] is True
     assert "id" in data
@@ -39,12 +42,13 @@ def test_configure_company(client: TestClient) -> None:
 
 def test_get_company(client: TestClient) -> None:
     """Test GET /api/config/company."""
-    # First configure company
     client.post(
         "/api/config/company",
         json={
             "name": "Test Company S.L.",
             "nif": "B12345678",
+            "address": "Calle Mayor 1, Madrid",
+            "contact_info": "info@test-company.com",
             "commission_rate": "0.50",
         },
     )
@@ -56,6 +60,8 @@ def test_get_company(client: TestClient) -> None:
     data = response.json()
     assert data["name"] == "Test Company S.L."
     assert data["nif"] == "B12345678"
+    assert data["address"] == "Calle Mayor 1, Madrid"
+    assert data["contact_info"] == "info@test-company.com"
 
 
 def test_get_company_not_configured(client: TestClient) -> None:
@@ -224,6 +230,8 @@ def test_update_company_commission_rate(client: TestClient) -> None:
         json={
             "name": "Test Company",
             "nif": "B12345678",
+            "address": "Old address",
+            "contact_info": "old-contact@test.com",
             "commission_rate": "0.50",
         },
     )
@@ -234,6 +242,8 @@ def test_update_company_commission_rate(client: TestClient) -> None:
         json={
             "name": "Test Company Updated",
             "nif": "B12345678",
+            "address": "New address 123",
+            "contact_info": "new-contact@test.com",
             "commission_rate": "0.40",
         },
     )
@@ -241,6 +251,8 @@ def test_update_company_commission_rate(client: TestClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Company Updated"
+    assert data["address"] == "New address 123"
+    assert data["contact_info"] == "new-contact@test.com"
     assert Decimal(data["commission_rate"]) == Decimal("0.40")
 
 

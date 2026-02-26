@@ -47,6 +47,8 @@ def configure_company(
     dto_request = ConfigureCompanyRequest(
         name=request.name,
         nif=request.nif,
+        address=request.address,
+        contact_info=request.contact_info,
         commission_rate=request.commission_rate,
     )
 
@@ -58,6 +60,8 @@ def configure_company(
         id=result.id,
         name=result.name,
         nif=result.nif,
+        address=result.address,
+        contact_info=result.contact_info,
         commission_rate=result.commission_rate,
         is_configured=result.is_configured,
     )
@@ -77,6 +81,8 @@ def get_company(
         id=result.id,
         name=result.name,
         nif=result.nif,
+        address=result.address,
+        contact_info=result.contact_info,
         commission_rate=result.commission_rate,
         is_configured=result.is_configured,
     )

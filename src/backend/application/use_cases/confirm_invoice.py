@@ -55,8 +55,6 @@ class ConfirmInvoiceUseCase:
         if document is None:
             raise ValueError(f"Document not found: {request.document_id}")
 
-        self._cleanup_existing_projection_for_document(document.id)
-
         try:
             document_type = DocumentType(request.document_type)
         except ValueError as exc:
@@ -64,6 +62,7 @@ class ConfirmInvoiceUseCase:
 
         # Non-invoice documents can be closed without invoice persistence.
         if document_type == DocumentType.OTHER:
+            self._cleanup_existing_projection_for_document(document.id)
             document.mark_processed(DocumentType.OTHER)
             self.document_repo.update(document)
             return ConfirmInvoiceResponse(
@@ -148,7 +147,9 @@ class ConfirmInvoiceUseCase:
             invoice_number=request.invoice_number or "",
             client_id=client.id,
         )
-        if existing is not None:
+        if existing is not None and not self._is_same_source_document(
+            existing.source_document, source_document.document_id
+        ):
             raise ValueError("Client invoice already exists for invoice_number + client")
 
         charges_total = self._sum_charge_amounts(request.charges)
@@ -156,6 +157,7 @@ class ConfirmInvoiceUseCase:
         total_amount = self._to_money(request.totals.get("total")) if request.totals.get(
             "total"
         ) is not None else charges_total + tax_amount
+        self._cleanup_existing_projection_for_document(source_document.document_id)
 
         invoice = ClientInvoice.create(
             invoice_number=request.invoice_number or "",
@@ -230,7 +232,9 @@ class ConfirmInvoiceUseCase:
             invoice_number=request.invoice_number or "",
             provider_id=provider.id,
         )
-        if existing is not None:
+        if existing is not None and not self._is_same_source_document(
+            existing.source_document, source_document.document_id
+        ):
             raise ValueError("Provider invoice already exists for invoice_number + provider")
 
         charges_total = self._sum_charge_amounts(request.charges)
@@ -238,6 +242,7 @@ class ConfirmInvoiceUseCase:
         total_amount = self._to_money(request.totals.get("total")) if request.totals.get(
             "total"
         ) is not None else charges_total + tax_amount
+        self._cleanup_existing_projection_for_document(source_document.document_id)
 
         invoice = ProviderInvoice.create(
             invoice_number=request.invoice_number or "",
@@ -378,3 +383,10 @@ class ConfirmInvoiceUseCase:
                 )
             if booking_changed:
                 self.booking_repo.update(booking)
+
+    def _is_same_source_document(
+        self,
+        source_document: DocumentReference | None,
+        document_id: UUID,
+    ) -> bool:
+        return source_document is not None and source_document.document_id == document_id

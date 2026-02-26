@@ -24,6 +24,7 @@ class BookingFilters:
     """Filters for booking queries."""
 
     client_id: UUID | None = None
+    booking: str | None = None
     status: BookingStatus | None = None
     date_from: str | None = None  # ISO format date
     date_to: str | None = None  # ISO format date

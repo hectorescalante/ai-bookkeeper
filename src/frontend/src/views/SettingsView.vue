@@ -20,7 +20,7 @@
           </span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-600">Company name</label>
             <InputText
@@ -35,6 +35,22 @@
               v-model="companyForm.nif"
               class="w-full"
               placeholder="B12345678"
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Address</label>
+            <InputText
+              v-model="companyForm.address"
+              class="w-full"
+              placeholder="Street, city, postal code"
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Contact info</label>
+            <InputText
+              v-model="companyForm.contact_info"
+              class="w-full"
+              placeholder="Phone / Email / Contact person"
             />
           </div>
           <div>
@@ -283,6 +299,8 @@ const outlookConfigured = ref(false);
 const companyForm = ref({
   name: "",
   nif: "",
+  address: "",
+  contact_info: "",
   commission_rate: "0.50",
 });
 const agentForm = ref({
@@ -329,6 +347,8 @@ const loadCompany = async (): Promise<void> => {
     companyForm.value = {
       name: company.name,
       nif: company.nif,
+      address: company.address,
+      contact_info: company.contact_info,
       commission_rate: String(company.commission_rate),
     };
   } catch (error) {
@@ -337,6 +357,8 @@ const loadCompany = async (): Promise<void> => {
       companyForm.value = {
         name: "",
         nif: "",
+        address: "",
+        contact_info: "",
         commission_rate: "0.50",
       };
       return;
@@ -450,12 +472,16 @@ const saveCompany = async (): Promise<void> => {
     const response = await configureCompany({
       name,
       nif,
+      address: companyForm.value.address.trim(),
+      contact_info: companyForm.value.contact_info.trim(),
       commission_rate: commissionRate.toFixed(2),
     });
     companyConfigured.value = response.is_configured;
     companyForm.value = {
       name: response.name,
       nif: response.nif,
+      address: response.address,
+      contact_info: response.contact_info,
       commission_rate: String(response.commission_rate),
     };
     window.dispatchEvent(new Event("bookings:refresh"));

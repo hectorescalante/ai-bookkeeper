@@ -1,4 +1,5 @@
 """Tests for ConfirmInvoiceUseCase."""
+from dataclasses import replace
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -272,7 +273,7 @@ def test_confirm_reprocess_cleans_previous_projection_before_duplicate_check() -
     response = use_case.execute(request)
 
     assert response.status == "PROCESSED"
-    assert events == ["delete", "find"]
+    assert events == ["find", "delete"]
 
 
 def test_confirm_reprocess_replaces_old_booking_charges() -> None:
@@ -320,3 +321,32 @@ def test_confirm_reprocess_replaces_old_booking_charges() -> None:
     assert all(charge.invoice_id != old_invoice_id for charge in existing_booking.revenue_charges)
     assert len(existing_booking.revenue_charges) == 1
     assert booking_repo.update.call_count >= 1
+
+
+def test_confirm_reprocess_invalid_payload_keeps_existing_projection() -> None:
+    document = _make_document()
+    old_invoice_id = uuid4()
+    document.mark_processed(DocumentType.CLIENT_INVOICE, invoice_id=old_invoice_id)
+
+    document_repo = MagicMock()
+    document_repo.find_by_id.return_value = document
+    booking_repo = MagicMock()
+    booking_repo.list_all.return_value = []
+    invoice_repo = MagicMock()
+    client_repo = MagicMock()
+    provider_repo = MagicMock()
+
+    use_case = ConfirmInvoiceUseCase(
+        document_repo=document_repo,
+        booking_repo=booking_repo,
+        invoice_repo=invoice_repo,
+        client_repo=client_repo,
+        provider_repo=provider_repo,
+    )
+
+    request = replace(_base_request(document.id, "CLIENT_INVOICE"), charges=[])
+
+    with pytest.raises(ValueError, match="At least one charge is required"):
+        use_case.execute(request)
+
+    invoice_repo.delete_by_source_document.assert_not_called()

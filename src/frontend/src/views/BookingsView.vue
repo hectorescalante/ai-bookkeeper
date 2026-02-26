@@ -11,7 +11,16 @@
     </div>
 
     <div class="bg-white rounded-lg shadow p-4 mb-4">
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">Booking ID</label>
+          <input
+            v-model="filters.booking"
+            type="text"
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            placeholder="Filter by booking"
+          />
+        </div>
         <div class="xl:col-span-2">
           <label class="block text-xs text-gray-600 mb-1">Client</label>
           <input
@@ -171,6 +180,7 @@ const toast = useToast();
 const bookings = ref<BookingListItem[]>([]);
 const isLoading = ref(false);
 const filters = ref<{
+  booking: string;
   client: string;
   status: "" | BookingStatus;
   date_from: string;
@@ -178,6 +188,7 @@ const filters = ref<{
   sort_by: "created_at" | "margin" | "commission";
   descending: boolean;
 }>({
+  booking: "",
   client: "",
   status: "",
   date_from: "",
@@ -219,6 +230,7 @@ const statusClass = (status: string): string => {
 
 const resetFilters = (): void => {
   filters.value = {
+    booking: "",
     client: "",
     status: "",
     date_from: "",
@@ -250,6 +262,7 @@ const loadBookings = async (): Promise<void> => {
   isLoading.value = true;
   try {
     const response = await listBookings({
+      booking: filters.value.booking.trim() || undefined,
       client: filters.value.client.trim() || undefined,
       status: filters.value.status || undefined,
       date_from: filters.value.date_from || undefined,

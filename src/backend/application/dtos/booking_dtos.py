@@ -83,6 +83,7 @@ class ListBookingsRequest:
 
     client_id: UUID | None = None
     client: str | None = None
+    booking: str | None = None
     status: str | None = None
     date_from: str | None = None
     date_to: str | None = None

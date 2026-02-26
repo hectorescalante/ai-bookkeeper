@@ -26,6 +26,8 @@ class Company:
     id: UUID
     name: str
     nif: str  # Tax ID, used for invoice classification
+    address: str = ""
+    contact_info: str = ""
     agent_commission_rate: Decimal = Decimal("0.50")  # Default 50%
 
     @classmethod
@@ -33,6 +35,8 @@ class Company:
         cls,
         name: str = "",
         nif: str = "",
+        address: str = "",
+        contact_info: str = "",
         commission_rate: Decimal = Decimal("0.50"),
     ) -> "Company":
         """Create company configuration."""
@@ -40,6 +44,8 @@ class Company:
             id=uuid4(),
             name=name,
             nif=normalize_nif(nif) if nif else "",
+            address=address,
+            contact_info=contact_info,
             agent_commission_rate=commission_rate,
         )
 
@@ -47,6 +53,8 @@ class Company:
         self,
         name: str | None = None,
         nif: str | None = None,
+        address: str | None = None,
+        contact_info: str | None = None,
         commission_rate: Decimal | None = None,
     ) -> None:
         """Update company settings."""
@@ -54,6 +62,10 @@ class Company:
             self.name = name
         if nif is not None:
             self.nif = normalize_nif(nif)
+        if address is not None:
+            self.address = address
+        if contact_info is not None:
+            self.contact_info = contact_info
         if commission_rate is not None:
             self.agent_commission_rate = commission_rate
 

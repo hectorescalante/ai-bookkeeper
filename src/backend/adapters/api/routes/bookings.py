@@ -50,6 +50,7 @@ class UpdateBookingRequest(BaseModel):
 def list_bookings(
     client_id: Annotated[UUID | None, Query(description="Filter by client ID")] = None,
     client: Annotated[str | None, Query(description="Filter by client name")] = None,
+    booking: Annotated[str | None, Query(description="Filter by booking ID")] = None,
     status: Annotated[
         BookingStatusFilter | None,
         Query(description="Filter by status"),
@@ -69,6 +70,7 @@ def list_bookings(
     dto_request = ListBookingsRequest(
         client_id=client_id,
         client=client,
+        booking=booking,
         status=status,
         date_from=date_from.isoformat() if date_from is not None else None,
         date_to=date_to.isoformat() if date_to is not None else None,

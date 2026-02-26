@@ -224,6 +224,16 @@ def test_list_bookings_by_client_name(client: TestClient, _sample_bookings) -> N
     assert data["bookings"][0]["id"] == "BL-2024-001"
 
 
+def test_list_bookings_by_booking_id(client: TestClient, _sample_bookings) -> None:
+    """Test GET /api/bookings with booking ID text filter."""
+    response = client.get("/api/bookings?booking=2024-002")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["bookings"][0]["id"] == "BL-2024-002"
+
+
 def test_get_booking_detail(client: TestClient, _sample_bookings) -> None:
     """Test GET /api/bookings/{bl_reference}."""
     response = client.get("/api/bookings/BL-2024-001")

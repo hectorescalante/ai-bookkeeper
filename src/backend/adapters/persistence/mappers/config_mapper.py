@@ -14,6 +14,8 @@ def company_to_model(company: Company) -> CompanyModel:
         id=company.id,
         name=company.name,
         nif=company.nif,
+        address=company.address,
+        contact_info=company.contact_info,
         agent_commission_rate=company.agent_commission_rate,
     )
 
@@ -24,6 +26,8 @@ def model_to_company(model: CompanyModel) -> Company:
         id=model.id,
         name=model.name,
         nif=model.nif,
+        address=model.address,
+        contact_info=model.contact_info,
         agent_commission_rate=model.agent_commission_rate,
     )
 

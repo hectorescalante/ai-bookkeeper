@@ -33,6 +33,8 @@ class SqlAlchemyCompanyRepository(CompanyRepository):
         if existing:
             existing.name = company.name
             existing.nif = company.nif
+            existing.address = company.address
+            existing.contact_info = company.contact_info
             existing.agent_commission_rate = company.agent_commission_rate
         else:
             model = company_to_model(company)

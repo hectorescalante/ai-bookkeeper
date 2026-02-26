@@ -20,7 +20,11 @@ class TestCompanyRepository:
         repo = SqlAlchemyCompanyRepository(db_session)
 
         company = Company.create(
-            name="Test Company SA", nif="B12345678", commission_rate=Decimal("0.50")
+            name="Test Company SA",
+            nif="B12345678",
+            address="Old Port 12, Valencia",
+            contact_info="ops@test-company.com",
+            commission_rate=Decimal("0.50"),
         )
         repo.save(company)
 
@@ -29,6 +33,8 @@ class TestCompanyRepository:
         assert retrieved is not None
         assert retrieved.name == "Test Company SA"
         assert retrieved.nif == "B12345678"
+        assert retrieved.address == "Old Port 12, Valencia"
+        assert retrieved.contact_info == "ops@test-company.com"
         assert retrieved.agent_commission_rate == Decimal("0.50")
 
     def test_update_existing_company(self, db_session):
@@ -39,7 +45,11 @@ class TestCompanyRepository:
         repo.save(company1)
 
         company2 = Company.create(
-            name="Company 2 Updated", nif="B22222222", commission_rate=Decimal("0.45")
+            name="Company 2 Updated",
+            nif="B22222222",
+            address="New Dock 5, Barcelona",
+            contact_info="finance@company2.com",
+            commission_rate=Decimal("0.45"),
         )
         company2.id = company1.id
         repo.save(company2)
@@ -48,6 +58,8 @@ class TestCompanyRepository:
         assert retrieved is not None
         assert retrieved.name == "Company 2 Updated"
         assert retrieved.nif == "B22222222"
+        assert retrieved.address == "New Dock 5, Barcelona"
+        assert retrieved.contact_info == "finance@company2.com"
         assert retrieved.agent_commission_rate == Decimal("0.45")
 
     def test_get_empty_returns_none(self, db_session):
