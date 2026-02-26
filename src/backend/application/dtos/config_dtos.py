@@ -24,6 +24,24 @@ class CompanyResponse:
     commission_rate: Decimal
     is_configured: bool
 
+@dataclass(frozen=True)
+class ConfigureAgentRequest:
+    """Request to configure agent profile."""
+
+    name: str
+    email: str
+    phone: str
+
+
+@dataclass(frozen=True)
+class AgentResponse:
+    """Response with agent profile."""
+
+    id: UUID
+    name: str
+    email: str
+    phone: str
+
 
 @dataclass(frozen=True)
 class ConfigureSettingsRequest:

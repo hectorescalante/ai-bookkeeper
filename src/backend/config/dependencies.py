@@ -10,6 +10,7 @@ from backend.adapters.ai import GeminiExtractor
 from backend.adapters.email import OutlookGraphEmailClient, OutlookOAuthManager
 from backend.adapters.persistence.database import get_db
 from backend.adapters.persistence.repositories import (
+    SqlAlchemyAgentRepository,
     SqlAlchemyBookingRepository,
     SqlAlchemyClientRepository,
     SqlAlchemyCompanyRepository,
@@ -19,6 +20,7 @@ from backend.adapters.persistence.repositories import (
     SqlAlchemySettingsRepository,
 )
 from backend.application.use_cases import (
+    ConfigureAgentUseCase,
     ConfigureCompanyUseCase,
     ConfigureSettingsUseCase,
     ConfirmInvoiceUseCase,
@@ -37,6 +39,7 @@ from backend.config import get_settings
 from backend.ports.output.ai_extractor import AIExtractor
 from backend.ports.output.email_client import EmailClient
 from backend.ports.output.repositories import (
+    AgentRepository,
     BookingRepository,
     ClientRepository,
     CompanyRepository,
@@ -54,6 +57,10 @@ _oauth_manager: OutlookOAuthManager | None = None
 def get_company_repository(db: Annotated[Session, Depends(get_db)]) -> CompanyRepository:
     """Get company repository instance."""
     return SqlAlchemyCompanyRepository(db)
+
+def get_agent_repository(db: Annotated[Session, Depends(get_db)]) -> AgentRepository:
+    """Get agent repository instance."""
+    return SqlAlchemyAgentRepository(db)
 
 
 def get_settings_repository(db: Annotated[Session, Depends(get_db)]) -> SettingsRepository:
@@ -94,6 +101,12 @@ def get_configure_company_use_case(
 ) -> ConfigureCompanyUseCase:
     """Get configure company use case instance."""
     return ConfigureCompanyUseCase(company_repo)
+
+def get_configure_agent_use_case(
+    agent_repo: Annotated[AgentRepository, Depends(get_agent_repository)],
+) -> ConfigureAgentUseCase:
+    """Get configure agent use case instance."""
+    return ConfigureAgentUseCase(agent_repo)
 
 
 def get_configure_settings_use_case(

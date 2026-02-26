@@ -112,3 +112,30 @@ class SqlAlchemyInvoiceRepository(InvoiceRepository):
 
         models = query.order_by(ProviderInvoiceModel.invoice_date.desc()).all()
         return [model_to_provider_invoice(model) for model in models]
+
+    def delete_by_source_document(self, document_id: UUID) -> list[UUID]:
+        """Delete invoices linked to a source document and return removed IDs."""
+        removed_ids: list[UUID] = []
+
+        client_models = (
+            self.session.query(ClientInvoiceModel)
+            .filter(ClientInvoiceModel.source_document_id == document_id)
+            .all()
+        )
+        provider_models = (
+            self.session.query(ProviderInvoiceModel)
+            .filter(ProviderInvoiceModel.source_document_id == document_id)
+            .all()
+        )
+
+        for client_model in client_models:
+            removed_ids.append(client_model.id)
+            self.session.delete(client_model)
+        for provider_model in provider_models:
+            removed_ids.append(provider_model.id)
+            self.session.delete(provider_model)
+
+        if removed_ids:
+            self.session.commit()
+
+        return removed_ids

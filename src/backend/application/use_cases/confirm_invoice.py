@@ -55,6 +55,8 @@ class ConfirmInvoiceUseCase:
         if document is None:
             raise ValueError(f"Document not found: {request.document_id}")
 
+        self._cleanup_existing_projection_for_document(document.id)
+
         try:
             document_type = DocumentType(request.document_type)
         except ValueError as exc:
@@ -360,3 +362,19 @@ class ConfirmInvoiceUseCase:
         containers = shipping.get("containers")
         if isinstance(containers, list):
             booking.containers = [str(container) for container in containers if container]
+
+    def _cleanup_existing_projection_for_document(self, document_id: UUID) -> None:
+        """Remove previously persisted projection for a source document."""
+        replaced_invoice_ids = self.invoice_repo.delete_by_source_document(document_id)
+        if not replaced_invoice_ids:
+            return
+
+        bookings = self.booking_repo.list_all()
+        for booking in bookings:
+            booking_changed = False
+            for invoice_id in replaced_invoice_ids:
+                booking_changed = (
+                    booking.remove_charges_for_invoice(invoice_id) or booking_changed
+                )
+            if booking_changed:
+                self.booking_repo.update(booking)

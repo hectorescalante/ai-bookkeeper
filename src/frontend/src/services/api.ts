@@ -100,6 +100,15 @@ export interface ConfigureSettingsRequest {
   extraction_prompt?: string | null;
 }
 
+export interface TestGeminiConnectionRequest {
+  gemini_api_key?: string | null;
+}
+
+export interface TestGeminiConnectionResponse {
+  valid: boolean;
+  message: string;
+}
+
 export interface CompanyResponse {
   id: string;
   name: string;
@@ -112,6 +121,19 @@ export interface ConfigureCompanyRequest {
   name: string;
   nif: string;
   commission_rate: string | number;
+}
+
+export interface AgentResponse {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export interface ConfigureAgentRequest {
+  name: string;
+  email: string;
+  phone: string;
 }
 
 export interface OutlookConnectResponse {
@@ -324,10 +346,21 @@ export const getSettings = () => api.get<SettingsResponse>("/config/settings");
 export const configureSettings = (payload: ConfigureSettingsRequest) =>
   api.post<SettingsResponse>("/config/settings", payload);
 
+export const testGeminiConnection = (payload: TestGeminiConnectionRequest = {}) =>
+  api.post<TestGeminiConnectionResponse>(
+    "/config/settings/test-connection",
+    payload
+  );
+
 export const getCompany = () => api.get<CompanyResponse>("/config/company");
 
 export const configureCompany = (payload: ConfigureCompanyRequest) =>
   api.post<CompanyResponse>("/config/company", payload);
+
+export const getAgent = () => api.get<AgentResponse>("/config/agent");
+
+export const configureAgent = (payload: ConfigureAgentRequest) =>
+  api.post<AgentResponse>("/config/agent", payload);
 
 export const connectOutlook = () =>
   api.get<OutlookConnectResponse>("/settings/outlook/connect");

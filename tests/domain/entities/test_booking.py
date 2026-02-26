@@ -323,6 +323,75 @@ class TestBookingChargeValidation:
         with pytest.raises(ValueError, match="does not match"):
             booking.add_cost_charge(charge)
 
+    def test_remove_charges_for_invoice_removes_matching_revenue_and_cost(self) -> None:
+        """Test removing charges linked to a specific invoice id."""
+        booking = Booking.create("BL-001")
+        removed_invoice_id = uuid4()
+        kept_invoice_id = uuid4()
+
+        booking.add_revenue_charge(
+            BookingCharge(
+                booking_id="BL-001",
+                invoice_id=removed_invoice_id,
+                charge_category=ChargeCategory.FREIGHT,
+                provider_type=None,
+                container=None,
+                description="Revenue removed",
+                amount=Money.from_float(100.00),
+            )
+        )
+        booking.add_cost_charge(
+            BookingCharge(
+                booking_id="BL-001",
+                invoice_id=removed_invoice_id,
+                charge_category=ChargeCategory.TRANSPORT,
+                provider_type=ProviderType.CARRIER,
+                container=None,
+                description="Cost removed",
+                amount=Money.from_float(40.00),
+            )
+        )
+        booking.add_revenue_charge(
+            BookingCharge(
+                booking_id="BL-001",
+                invoice_id=kept_invoice_id,
+                charge_category=ChargeCategory.HANDLING,
+                provider_type=None,
+                container=None,
+                description="Revenue kept",
+                amount=Money.from_float(60.00),
+            )
+        )
+
+        changed = booking.remove_charges_for_invoice(removed_invoice_id)
+
+        assert changed is True
+        assert all(c.invoice_id != removed_invoice_id for c in booking.revenue_charges)
+        assert all(c.invoice_id != removed_invoice_id for c in booking.cost_charges)
+        assert len(booking.revenue_charges) == 1
+        assert booking.revenue_charges[0].invoice_id == kept_invoice_id
+        assert len(booking.cost_charges) == 0
+
+    def test_remove_charges_for_invoice_returns_false_when_no_match(self) -> None:
+        """Test remove operation is a no-op when invoice id is not present."""
+        booking = Booking.create("BL-001")
+        booking.add_revenue_charge(
+            BookingCharge(
+                booking_id="BL-001",
+                invoice_id=uuid4(),
+                charge_category=ChargeCategory.FREIGHT,
+                provider_type=None,
+                container=None,
+                description="Revenue",
+                amount=Money.from_float(100.00),
+            )
+        )
+
+        changed = booking.remove_charges_for_invoice(uuid4())
+
+        assert changed is False
+        assert len(booking.revenue_charges) == 1
+
 
 class TestBookingProperties:
     """Tests for Booking property checks."""

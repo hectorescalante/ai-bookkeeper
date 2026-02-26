@@ -23,6 +23,22 @@ class CompanyResponse(BaseModel):
     commission_rate: Decimal
     is_configured: bool
 
+class AgentRequest(BaseModel):
+    """Request to configure agent profile."""
+
+    name: str = Field(..., min_length=1, max_length=200, description="Agent name")
+    email: str = Field(..., min_length=1, max_length=255, description="Agent email")
+    phone: str = Field(..., min_length=1, max_length=50, description="Agent phone")
+
+
+class AgentResponse(BaseModel):
+    """Agent profile response."""
+
+    id: UUID
+    name: str
+    email: str
+    phone: str
+
 
 class SettingsRequest(BaseModel):
     """Request to configure settings."""
@@ -40,3 +56,19 @@ class SettingsResponse(BaseModel):
     outlook_configured: bool
     default_export_path: str
     extraction_prompt: str
+
+
+class TestGeminiConnectionRequest(BaseModel):
+    """Request to test Gemini API connection."""
+
+    gemini_api_key: str | None = Field(
+        None,
+        description="Gemini API key to test; if omitted, uses stored key",
+    )
+
+
+class TestGeminiConnectionResponse(BaseModel):
+    """Response for Gemini API connection test."""
+
+    valid: bool
+    message: str

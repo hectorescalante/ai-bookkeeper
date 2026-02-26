@@ -119,6 +119,11 @@ class InvoiceRepository(ABC):
         """List provider invoices with optional filtering."""
         pass
 
+    @abstractmethod
+    def delete_by_source_document(self, document_id: UUID) -> list[UUID]:
+        """Delete invoices linked to a source document and return removed invoice IDs."""
+        pass
+
 
 class DocumentRepository(ABC):
     """Repository for document persistence."""

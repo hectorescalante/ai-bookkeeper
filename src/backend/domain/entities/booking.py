@@ -94,6 +94,27 @@ class Booking:
             raise ValueError(f"Charge booking_id {charge.booking_id} does not match {self.id}")
         self.cost_charges.append(charge)
 
+    def remove_charges_for_invoice(self, invoice_id: UUID) -> bool:
+        """Remove revenue/cost charges associated with an invoice.
+
+        Returns:
+            True when at least one charge was removed.
+        """
+        previous_revenue_count = len(self.revenue_charges)
+        previous_cost_count = len(self.cost_charges)
+
+        self.revenue_charges = [
+            charge for charge in self.revenue_charges if charge.invoice_id != invoice_id
+        ]
+        self.cost_charges = [
+            charge for charge in self.cost_charges if charge.invoice_id != invoice_id
+        ]
+
+        return (
+            len(self.revenue_charges) != previous_revenue_count
+            or len(self.cost_charges) != previous_cost_count
+        )
+
     def mark_complete(self) -> None:
         """Mark booking as complete."""
         self.status = BookingStatus.COMPLETE

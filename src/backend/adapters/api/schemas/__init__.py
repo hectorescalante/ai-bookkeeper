@@ -8,10 +8,14 @@ from backend.adapters.api.schemas.booking_schemas import (
     ListBookingsResponse,
 )
 from backend.adapters.api.schemas.config_schemas import (
+    AgentRequest,
+    AgentResponse,
     CompanyRequest,
     CompanyResponse,
     SettingsRequest,
     SettingsResponse,
+    TestGeminiConnectionRequest,
+    TestGeminiConnectionResponse,
 )
 from backend.adapters.api.schemas.document_schemas import (
     DocumentListItem,
@@ -30,10 +34,14 @@ from backend.adapters.api.schemas.report_schemas import (
 
 __all__ = [
     # Config
+    "AgentRequest",
+    "AgentResponse",
     "CompanyRequest",
     "CompanyResponse",
     "SettingsRequest",
     "SettingsResponse",
+    "TestGeminiConnectionRequest",
+    "TestGeminiConnectionResponse",
     # Documents
     "DocumentListItem",
     "FetchEmailsRequest",

@@ -1,5 +1,6 @@
 """Use case implementations."""
 
+from backend.application.use_cases.configure_agent import ConfigureAgentUseCase
 from backend.application.use_cases.configure_company import ConfigureCompanyUseCase
 from backend.application.use_cases.configure_settings import ConfigureSettingsUseCase
 from backend.application.use_cases.confirm_invoice import ConfirmInvoiceUseCase
@@ -18,6 +19,7 @@ from backend.application.use_cases.view_booking_detail import ViewBookingDetailU
 
 __all__ = [
     "ConfigureCompanyUseCase",
+    "ConfigureAgentUseCase",
     "ConfigureSettingsUseCase",
     "ConfirmInvoiceUseCase",
     "EditBookingUseCase",

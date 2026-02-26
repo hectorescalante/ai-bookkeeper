@@ -5,20 +5,34 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.adapters.api.schemas import (
+    AgentRequest,
+    AgentResponse,
     CompanyRequest,
     CompanyResponse,
     SettingsRequest,
     SettingsResponse,
+    TestGeminiConnectionRequest,
+    TestGeminiConnectionResponse,
 )
 from backend.application.dtos import (
+    ConfigureAgentRequest,
     ConfigureCompanyRequest,
     ConfigureSettingsRequest,
 )
-from backend.application.use_cases import ConfigureCompanyUseCase, ConfigureSettingsUseCase
+from backend.application.use_cases import (
+    ConfigureAgentUseCase,
+    ConfigureCompanyUseCase,
+    ConfigureSettingsUseCase,
+)
 from backend.config.dependencies import (
+    get_ai_extractor,
+    get_configure_agent_use_case,
     get_configure_company_use_case,
     get_configure_settings_use_case,
+    get_settings_repository,
 )
+from backend.ports.output.ai_extractor import AIExtractor
+from backend.ports.output.repositories import SettingsRepository
 
 router = APIRouter(prefix="/api/config", tags=["configuration"])
 
@@ -67,6 +81,43 @@ def get_company(
         is_configured=result.is_configured,
     )
 
+@router.post("/agent", response_model=AgentResponse, status_code=200)
+def configure_agent(
+    request: AgentRequest,
+    use_case: Annotated[ConfigureAgentUseCase, Depends(get_configure_agent_use_case)],
+) -> AgentResponse:
+    """Configure or update agent profile."""
+    dto_request = ConfigureAgentRequest(
+        name=request.name,
+        email=request.email,
+        phone=request.phone,
+    )
+    result = use_case.execute(dto_request)
+    return AgentResponse(
+        id=result.id,
+        name=result.name,
+        email=result.email,
+        phone=result.phone,
+    )
+
+
+@router.get("/agent", response_model=AgentResponse, status_code=200)
+def get_agent(
+    use_case: Annotated[ConfigureAgentUseCase, Depends(get_configure_agent_use_case)],
+) -> AgentResponse:
+    """Get current agent profile."""
+    result = use_case.get_agent()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Agent not configured")
+
+    return AgentResponse(
+        id=result.id,
+        name=result.name,
+        email=result.email,
+        phone=result.phone,
+    )
+
 
 @router.post("/settings", response_model=SettingsResponse, status_code=200)
 def configure_settings(
@@ -92,6 +143,37 @@ def configure_settings(
         default_export_path=result.default_export_path,
         extraction_prompt=result.extraction_prompt,
     )
+
+
+@router.post(
+    "/settings/test-connection",
+    response_model=TestGeminiConnectionResponse,
+    status_code=200,
+)
+def test_gemini_connection(
+    request: TestGeminiConnectionRequest,
+    ai_extractor: Annotated[AIExtractor, Depends(get_ai_extractor)],
+    settings_repo: Annotated[SettingsRepository, Depends(get_settings_repository)],
+) -> TestGeminiConnectionResponse:
+    """Validate Gemini API key by making a test request."""
+    api_key = (request.gemini_api_key or "").strip()
+    if not api_key:
+        settings = settings_repo.get()
+        api_key = (settings.gemini_api_key if settings else "").strip()
+
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Gemini API key is required to test connection.",
+        )
+
+    if not ai_extractor.test_connection(api_key):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Gemini API key. Please verify it and retry.",
+        )
+
+    return TestGeminiConnectionResponse(valid=True, message="Valid connection")
 
 
 @router.get("/settings", response_model=SettingsResponse, status_code=200)

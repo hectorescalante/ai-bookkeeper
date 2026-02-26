@@ -8,7 +8,9 @@ from backend.application.dtos.booking_dtos import (
     ListBookingsRequest,
 )
 from backend.application.dtos.config_dtos import (
+    AgentResponse,
     CompanyResponse,
+    ConfigureAgentRequest,
     ConfigureCompanyRequest,
     ConfigureSettingsRequest,
     SettingsResponse,
@@ -38,7 +40,9 @@ __all__ = [
     "BookingDetailResponse",
     "EditBookingRequest",
     "BookingListItem",
+    "AgentResponse",
     "CompanyResponse",
+    "ConfigureAgentRequest",
     "ConfigureCompanyRequest",
     "ConfigureSettingsRequest",
     "DocumentListItem",

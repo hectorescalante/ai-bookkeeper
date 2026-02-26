@@ -60,6 +60,56 @@
           />
         </div>
       </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-800">Agent profile</h2>
+          <span
+            class="inline-flex px-2 py-1 rounded text-xs font-semibold"
+            :class="
+              agentConfigured
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-700'
+            "
+          >
+            {{ agentConfigured ? "Configured" : "Not configured" }}
+          </span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs text-gray-600">Name</label>
+            <InputText
+              v-model="agentForm.name"
+              class="w-full"
+              placeholder="Commercial agent name"
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Email</label>
+            <InputText
+              v-model="agentForm.email"
+              class="w-full"
+              placeholder="name@company.com"
+            />
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Phone</label>
+            <InputText
+              v-model="agentForm.phone"
+              class="w-full"
+              placeholder="+34 600 000 000"
+            />
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <Button
+            label="Save agent"
+            icon="pi pi-save"
+            :loading="isSavingAgent"
+            :disabled="isLoadingAgent"
+            @click="saveAgent"
+          />
+        </div>
+      </div>
 
       <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between mb-4">
@@ -120,14 +170,22 @@
             severity="secondary"
             outlined
             :loading="isClearingApiKey"
-            :disabled="isClearingApiKey || isSavingSettings"
+            :disabled="isClearingApiKey || isSavingSettings || isTestingApiKey"
             @click="clearApiKey"
+          />
+          <Button
+            label="Test connection"
+            icon="pi pi-bolt"
+            severity="secondary"
+            :loading="isTestingApiKey"
+            :disabled="isSavingSettings || isClearingApiKey"
+            @click="handleTestConnection"
           />
           <Button
             label="Save settings"
             icon="pi pi-save"
             :loading="isSavingSettings"
-            :disabled="isLoadingSettings"
+            :disabled="isLoadingSettings || isTestingApiKey"
             @click="saveSettings"
           />
         </div>
@@ -195,30 +253,42 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import { useToast } from "primevue/usetoast";
 import {
+  configureAgent,
   configureCompany,
   configureSettings,
   connectOutlook,
   disconnectOutlook,
+  getAgent,
   getCompany,
   getSettings,
+  testGeminiConnection,
 } from "../services/api";
 
 const toast = useToast();
 const isLoadingCompany = ref(false);
 const isSavingCompany = ref(false);
+const isLoadingAgent = ref(false);
+const isSavingAgent = ref(false);
 const isLoadingSettings = ref(false);
 const isSavingSettings = ref(false);
 const isClearingApiKey = ref(false);
+const isTestingApiKey = ref(false);
 const isConnecting = ref(false);
 const isDisconnecting = ref(false);
 
 const companyConfigured = ref(false);
+const agentConfigured = ref(false);
 const hasApiKey = ref(false);
 const outlookConfigured = ref(false);
 const companyForm = ref({
   name: "",
   nif: "",
   commission_rate: "0.50",
+});
+const agentForm = ref({
+  name: "",
+  email: "",
+  phone: "",
 });
 const settingsForm = ref({
   gemini_api_key: "",
@@ -279,6 +349,37 @@ const loadCompany = async (): Promise<void> => {
     });
   } finally {
     isLoadingCompany.value = false;
+  }
+};
+
+const loadAgent = async (): Promise<void> => {
+  isLoadingAgent.value = true;
+  try {
+    const agent = await getAgent();
+    agentConfigured.value = true;
+    agentForm.value = {
+      name: agent.name,
+      email: agent.email,
+      phone: agent.phone,
+    };
+  } catch (error) {
+    if (isNotConfiguredError(error)) {
+      agentConfigured.value = false;
+      agentForm.value = {
+        name: "",
+        email: "",
+        phone: "",
+      };
+      return;
+    }
+    toast.add({
+      severity: "error",
+      summary: "Failed to load agent profile",
+      detail: extractErrorMessage(error),
+      life: 4500,
+    });
+  } finally {
+    isLoadingAgent.value = false;
   }
 };
 
@@ -376,6 +477,73 @@ const saveCompany = async (): Promise<void> => {
   }
 };
 
+const saveAgent = async (): Promise<void> => {
+  const name = agentForm.value.name.trim();
+  const email = agentForm.value.email.trim();
+  const phone = agentForm.value.phone.trim();
+
+  if (!name || !email || !phone) {
+    toast.add({
+      severity: "warn",
+      summary: "Missing fields",
+      detail: "Name, email, and phone are required.",
+      life: 3500,
+    });
+    return;
+  }
+
+  isSavingAgent.value = true;
+  try {
+    const response = await configureAgent({ name, email, phone });
+    agentConfigured.value = true;
+    agentForm.value = {
+      name: response.name,
+      email: response.email,
+      phone: response.phone,
+    };
+    toast.add({
+      severity: "success",
+      summary: "Agent profile saved",
+      detail: "Agent information updated successfully.",
+      life: 3500,
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to save agent profile",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
+  } finally {
+    isSavingAgent.value = false;
+  }
+};
+
+const handleTestConnection = async (): Promise<void> => {
+  isTestingApiKey.value = true;
+  try {
+    const key = settingsForm.value.gemini_api_key.trim();
+    const result = await testGeminiConnection({
+      gemini_api_key: key.length > 0 ? key : null,
+    });
+    toast.add({
+      severity: "success",
+      summary: "Gemini connection",
+      detail: result.message,
+      life: 3500,
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Gemini connection failed",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
+  } finally {
+    isTestingApiKey.value = false;
+  }
+};
+
 const saveSettings = async (): Promise<void> => {
   const prompt = settingsForm.value.extraction_prompt.trim();
   if (!prompt) {
@@ -391,6 +559,9 @@ const saveSettings = async (): Promise<void> => {
   isSavingSettings.value = true;
   try {
     const geminiApiKey = settingsForm.value.gemini_api_key.trim();
+    if (geminiApiKey.length > 0) {
+      await testGeminiConnection({ gemini_api_key: geminiApiKey });
+    }
     const response = await configureSettings({
       gemini_api_key: geminiApiKey.length > 0 ? geminiApiKey : null,
       default_export_path: settingsForm.value.default_export_path.trim(),
@@ -520,6 +691,6 @@ const handleOutlookDisconnect = async (): Promise<void> => {
 };
 
 onMounted(async () => {
-  await Promise.all([loadCompany(), loadSettings()]);
+  await Promise.all([loadCompany(), loadAgent(), loadSettings()]);
 });
 </script>

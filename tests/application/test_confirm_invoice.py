@@ -1,6 +1,6 @@
 """Tests for ConfirmInvoiceUseCase."""
-
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 
@@ -10,8 +10,8 @@ from backend.domain.entities.booking import Booking
 from backend.domain.entities.document import Document
 from backend.domain.entities.invoice import ClientInvoice, ProviderInvoice
 from backend.domain.entities.party import Client, Provider
-from backend.domain.enums import DocumentType, ProcessingStatus, ProviderType
-from backend.domain.value_objects import FileHash, Money
+from backend.domain.enums import ChargeCategory, DocumentType, ProcessingStatus, ProviderType
+from backend.domain.value_objects import BookingCharge, FileHash, Money
 
 
 def _make_document() -> Document:
@@ -230,3 +230,93 @@ def test_confirm_duplicate_client_invoice_raises_error() -> None:
     request = _base_request(document.id, "CLIENT_INVOICE")
     with pytest.raises(ValueError, match="already exists"):
         use_case.execute(request)
+
+
+def test_confirm_reprocess_cleans_previous_projection_before_duplicate_check() -> None:
+    document = _make_document()
+    old_invoice_id = uuid4()
+    document.mark_processed(DocumentType.CLIENT_INVOICE, invoice_id=old_invoice_id)
+
+    document_repo = MagicMock()
+    document_repo.find_by_id.return_value = document
+    booking_repo = MagicMock()
+    booking_repo.list_all.return_value = []
+    booking_repo.find_or_create.return_value = Booking.create("BL-001")
+    invoice_repo = MagicMock()
+    client_repo = MagicMock()
+    provider_repo = MagicMock()
+
+    events: list[str] = []
+
+    def _delete_projection(_document_id):
+        events.append("delete")
+        return [old_invoice_id]
+
+    def _find_duplicate(*_args, **_kwargs):
+        events.append("find")
+        return None
+
+    invoice_repo.delete_by_source_document.side_effect = _delete_projection
+    invoice_repo.find_client_invoice.side_effect = _find_duplicate
+    client_repo.find_by_nif.return_value = None
+
+    use_case = ConfirmInvoiceUseCase(
+        document_repo=document_repo,
+        booking_repo=booking_repo,
+        invoice_repo=invoice_repo,
+        client_repo=client_repo,
+        provider_repo=provider_repo,
+    )
+
+    request = _base_request(document.id, "CLIENT_INVOICE")
+    response = use_case.execute(request)
+
+    assert response.status == "PROCESSED"
+    assert events == ["delete", "find"]
+
+
+def test_confirm_reprocess_replaces_old_booking_charges() -> None:
+    document = _make_document()
+    old_invoice_id = uuid4()
+    document.mark_processed(DocumentType.CLIENT_INVOICE, invoice_id=old_invoice_id)
+
+    existing_booking = Booking.create("BL-001")
+    existing_booking.add_revenue_charge(
+        BookingCharge(
+            booking_id="BL-001",
+            invoice_id=old_invoice_id,
+            charge_category=ChargeCategory.FREIGHT,
+            provider_type=None,
+            container=None,
+            description="Old revenue",
+            amount=Money.from_float(1000.0),
+        )
+    )
+
+    document_repo = MagicMock()
+    document_repo.find_by_id.return_value = document
+    booking_repo = MagicMock()
+    booking_repo.list_all.return_value = [existing_booking]
+    booking_repo.find_or_create.return_value = existing_booking
+    invoice_repo = MagicMock()
+    invoice_repo.delete_by_source_document.return_value = [old_invoice_id]
+    invoice_repo.find_client_invoice.return_value = None
+    client_repo = MagicMock()
+    client_repo.find_by_nif.return_value = None
+    provider_repo = MagicMock()
+
+    use_case = ConfirmInvoiceUseCase(
+        document_repo=document_repo,
+        booking_repo=booking_repo,
+        invoice_repo=invoice_repo,
+        client_repo=client_repo,
+        provider_repo=provider_repo,
+    )
+
+    request = _base_request(document.id, "CLIENT_INVOICE")
+    response = use_case.execute(request)
+
+    assert response.status == "PROCESSED"
+    assert all(charge.invoice_id != old_invoice_id for charge in existing_booking.revenue_charges)
+    assert len(existing_booking.revenue_charges) == 1
+    assert booking_repo.update.call_count >= 1
