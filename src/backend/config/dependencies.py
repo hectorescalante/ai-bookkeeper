@@ -118,9 +118,17 @@ def get_configure_settings_use_case(
 
 def get_list_documents_use_case(
     document_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    invoice_repo: Annotated[InvoiceRepository, Depends(get_invoice_repository)],
+    client_repo: Annotated[ClientRepository, Depends(get_client_repository)],
+    provider_repo: Annotated[ProviderRepository, Depends(get_provider_repository)],
 ) -> ListDocumentsUseCase:
     """Get list documents use case instance."""
-    return ListDocumentsUseCase(document_repo)
+    return ListDocumentsUseCase(
+        document_repo=document_repo,
+        invoice_repo=invoice_repo,
+        client_repo=client_repo,
+        provider_repo=provider_repo,
+    )
 
 
 def get_list_bookings_use_case(

@@ -1,9 +1,11 @@
 """Documents API routes."""
-
+from datetime import date
+from pathlib import Path
 from typing import Annotated, Literal, NoReturn
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from backend.adapters.api.routes.invoices import ProcessDocumentResponse
 from backend.adapters.api.schemas import (
@@ -24,13 +26,16 @@ from backend.application.use_cases import (
     ProcessInvoiceUseCase,
 )
 from backend.config.dependencies import (
+    get_document_repository,
     get_fetch_emails_use_case,
     get_list_documents_use_case,
     get_process_invoice_use_case,
 )
+from backend.ports.output.repositories import DocumentRepository
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 DocumentStatusFilter = Literal["PENDING", "PROCESSING", "PROCESSED", "ERROR"]
+DocumentTypeFilter = Literal["CLIENT_INVOICE", "PROVIDER_INVOICE", "OTHER"]
 
 
 @router.get("", response_model=ListDocumentsResponse, status_code=200)
@@ -39,15 +44,31 @@ def list_documents(
         DocumentStatusFilter | None,
         Query(description="Filter by status"),
     ] = None,
+    document_type: Annotated[
+        DocumentTypeFilter | None,
+        Query(description="Filter by document type"),
+    ] = None,
+    date_from: Annotated[date | None, Query(description="Date from (ISO)")] = None,
+    date_to: Annotated[date | None, Query(description="Date to (ISO)")] = None,
+    party: Annotated[str | None, Query(description="Filter by client/provider name")] = None,
+    booking: Annotated[str | None, Query(description="Filter by booking reference")] = None,
     limit: Annotated[int, Query(ge=1, le=500, description="Maximum results")] = 100,
     use_case: ListDocumentsUseCase = Depends(get_list_documents_use_case),
 ) -> ListDocumentsResponse:
     """List documents with optional status filtering."""
-    dto_request = ListDocumentsRequest(
-        status=status,
-        limit=limit,
-    )
-    documents = use_case.execute(dto_request)
+    try:
+        dto_request = ListDocumentsRequest(
+            status=status,
+            document_type=document_type,
+            date_from=date_from.isoformat() if date_from else None,
+            date_to=date_to.isoformat() if date_to else None,
+            party=party,
+            booking=booking,
+            limit=limit,
+        )
+        documents = use_case.execute(dto_request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ListDocumentsResponse(
         documents=[
             DocumentListItem(
@@ -61,10 +82,38 @@ def list_documents(
                 email_subject=doc.email_subject,
                 error_message=doc.error_message,
                 error_retryable=doc.error_retryable,
+                invoice_number=doc.invoice_number,
+                party_name=doc.party_name,
+                booking_references=doc.booking_references or [],
+                total_amount=doc.total_amount,
+                file_url=doc.file_url,
             )
             for doc in documents
         ],
         total=len(documents),
+    )
+
+
+@router.get("/{document_id}/file", response_class=FileResponse, status_code=200)
+def get_document_file(
+    document_id: UUID,
+    document_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+) -> FileResponse:
+    """Download source PDF for a document when available."""
+    document = document_repo.find_by_id(document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail=f"Document not found: {document_id}")
+    if not document.storage_path:
+        raise HTTPException(status_code=404, detail="Document file is not available")
+
+    file_path = Path(document.storage_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Document file does not exist")
+
+    return FileResponse(
+        path=file_path,
+        filename=document.filename,
+        media_type="application/pdf",
     )
 
 

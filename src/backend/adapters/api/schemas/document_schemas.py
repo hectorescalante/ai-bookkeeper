@@ -1,6 +1,7 @@
 """Pydantic schemas for document API."""
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -23,6 +24,12 @@ class DocumentListItem(BaseModel):
     # Error info
     error_message: str | None
     error_retryable: bool | None
+    # Processed history metadata
+    invoice_number: str | None
+    party_name: str | None
+    booking_references: list[str]
+    total_amount: Decimal | None
+    file_url: str | None
 
 
 class ListDocumentsResponse(BaseModel):
@@ -36,6 +43,20 @@ class ListDocumentsParams(BaseModel):
     """Query parameters for list documents endpoint."""
 
     status: str | None = Field(None, description="Filter by status (PENDING, PROCESSING, etc.)")
+    document_type: str | None = Field(
+        None,
+        description="Filter by document type (CLIENT_INVOICE, PROVIDER_INVOICE, OTHER)",
+    )
+    date_from: str | None = Field(None, description="Filter by date from (ISO format)")
+    date_to: str | None = Field(None, description="Filter by date to (ISO format)")
+    party: str | None = Field(
+        None,
+        description="Filter by client/provider name (contains, case-insensitive)",
+    )
+    booking: str | None = Field(
+        None,
+        description="Filter by booking reference (contains, case-insensitive)",
+    )
     limit: int = Field(100, ge=1, le=500, description="Maximum number of documents to return")
 
 

@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+export const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -56,13 +56,18 @@ export interface DocumentListItem {
   id: string;
   filename: string;
   status: DocumentStatus;
-  document_type: string | null;
+  document_type: DocumentType | null;
   created_at: string;
   processed_at: string | null;
   email_sender: string | null;
   email_subject: string | null;
   error_message: string | null;
   error_retryable: boolean | null;
+  invoice_number: string | null;
+  party_name: string | null;
+  booking_references: string[];
+  total_amount: string | number | null;
+  file_url: string | null;
 }
 
 export interface BookingChargeItem {
@@ -276,6 +281,7 @@ export interface ConfirmDocumentResponse {
   booking_ids: string[];
 }
 export type DocumentStatus = "PENDING" | "PROCESSING" | "PROCESSED" | "ERROR";
+export type DocumentType = "CLIENT_INVOICE" | "PROVIDER_INVOICE" | "OTHER";
 export type BookingStatus = "PENDING" | "COMPLETE";
 
 export interface CommissionReportRequest {
@@ -315,6 +321,11 @@ export interface FileDownloadResponse {
 
 export const listDocuments = (params?: {
   status?: DocumentStatus;
+  document_type?: DocumentType;
+  date_from?: string;
+  date_to?: string;
+  party?: string;
+  booking?: string;
   limit?: number;
 }) =>
   api.get<ListDocumentsResponse>("/documents", {

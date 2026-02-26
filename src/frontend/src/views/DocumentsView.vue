@@ -11,12 +11,88 @@
           @click="handleFetchEmails"
         />
         <Button
-          label="Process Selected"
+          :label="batchActionLabel"
           icon="pi pi-play"
           :disabled="selectedDocumentIds.length === 0 || isProcessingCurrentDocument"
           :loading="isProcessingCurrentDocument && queueMode === 'batch'"
           @click="startBatchProcessing"
         />
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-4 mb-4">
+      <div class="flex flex-wrap gap-2">
+        <Button
+          v-for="tab in tabs"
+          :key="tab.value"
+          :label="tab.label"
+          :severity="activeTab === tab.value ? undefined : 'secondary'"
+          :text="activeTab !== tab.value"
+          @click="setActiveTab(tab.value)"
+        />
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-4 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div>
+          <label class="text-xs text-gray-600">Date from</label>
+          <InputText
+            v-model="filters.date_from"
+            type="date"
+            class="w-full"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-gray-600">Date to</label>
+          <InputText
+            v-model="filters.date_to"
+            type="date"
+            class="w-full"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-gray-600">Document type</label>
+          <select
+            v-model="filters.document_type"
+            class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+          >
+            <option value="">All</option>
+            <option value="CLIENT_INVOICE">CLIENT_INVOICE</option>
+            <option value="PROVIDER_INVOICE">PROVIDER_INVOICE</option>
+            <option value="OTHER">OTHER</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-600">Party</label>
+          <InputText
+            v-model="filters.party"
+            class="w-full"
+            placeholder="Client or provider"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-gray-600">Booking</label>
+          <InputText
+            v-model="filters.booking"
+            class="w-full"
+            placeholder="BL reference"
+          />
+        </div>
+        <div class="flex items-end gap-2">
+          <Button
+            label="Apply"
+            icon="pi pi-search"
+            :loading="isLoadingDocuments"
+            @click="loadDocuments"
+          />
+          <Button
+            label="Clear"
+            severity="secondary"
+            text
+            @click="clearFilters"
+          />
+        </div>
       </div>
     </div>
 
@@ -33,13 +109,13 @@
       class="bg-white rounded-lg shadow p-8 text-center text-gray-500"
     >
       <i class="pi pi-inbox text-4xl mb-4"></i>
-      <p>No documents yet. Click "Fetch Emails" to get started.</p>
+      <p>{{ emptyStateMessage }}</p>
     </div>
 
     <div v-else class="bg-white rounded-lg shadow overflow-hidden">
       <div class="p-4 border-b flex items-center justify-between">
         <div class="text-sm text-gray-600">
-          {{ documents.length }} document(s)
+          {{ documents.length }} document(s) in {{ activeTabLabel }}
         </div>
         <label class="text-sm text-gray-700 flex items-center gap-2">
           <input
@@ -58,9 +134,66 @@
             <tr>
               <th class="px-4 py-3 w-10"></th>
               <th class="px-4 py-3">Filename</th>
-              <th class="px-4 py-3">Status</th>
-              <th class="px-4 py-3">Type</th>
-              <th class="px-4 py-3">Created</th>
+              <th
+                v-if="activeTab === 'PENDING'"
+                class="px-4 py-3"
+              >
+                Email
+              </th>
+              <th
+                v-if="activeTab === 'PENDING'"
+                class="px-4 py-3"
+              >
+                Created
+              </th>
+              <th
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3"
+              >
+                Type
+              </th>
+              <th
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3"
+              >
+                Invoice
+              </th>
+              <th
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3"
+              >
+                Party
+              </th>
+              <th
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3"
+              >
+                Booking
+              </th>
+              <th
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3"
+              >
+                Total
+              </th>
+              <th
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3"
+              >
+                Processed
+              </th>
+              <th
+                v-if="activeTab === 'ERROR'"
+                class="px-4 py-3"
+              >
+                Error
+              </th>
+              <th
+                v-if="activeTab === 'ERROR'"
+                class="px-4 py-3"
+              >
+                Created
+              </th>
               <th class="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -74,39 +207,100 @@
                 <input
                   type="checkbox"
                   :checked="selectedDocumentIds.includes(document.id)"
-                  :disabled="!isQueueEligible(document) || isProcessingCurrentDocument"
+                  :disabled="
+                    !isActionableForTab(document, activeTab) ||
+                    isProcessingCurrentDocument
+                  "
                   @change="toggleDocumentSelection(document.id)"
                 />
               </td>
               <td class="px-4 py-3">
                 <div class="font-medium text-gray-800">{{ document.filename }}</div>
-                <div v-if="document.email_sender" class="text-xs text-gray-500 mt-1">
-                  {{ document.email_sender }}
-                </div>
                 <div
-                  v-if="document.error_message"
-                  class="text-xs text-red-600 mt-1"
+                  v-if="document.file_url"
+                  class="mt-1"
                 >
-                  {{ document.error_message }}
+                  <a
+                    class="text-xs text-blue-600 hover:underline"
+                    :href="getDocumentFileUrl(document.file_url)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View PDF
+                  </a>
                 </div>
               </td>
-              <td class="px-4 py-3">
-                <span
-                  class="inline-flex px-2 py-1 rounded text-xs font-semibold"
-                  :class="statusClass(document.status)"
-                >
-                  {{ document.status }}
-                </span>
+              <td
+                v-if="activeTab === 'PENDING'"
+                class="px-4 py-3 text-gray-700"
+              >
+                <div class="text-xs text-gray-600">{{ document.email_sender ?? "—" }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ document.email_subject ?? "—" }}</div>
               </td>
-              <td class="px-4 py-3 text-gray-700">
+              <td
+                v-if="activeTab === 'PENDING'"
+                class="px-4 py-3 text-gray-700"
+              >
+                {{ formatDate(document.created_at) }}
+              </td>
+              <td
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3 text-gray-700"
+              >
                 {{ document.document_type ?? "—" }}
               </td>
-              <td class="px-4 py-3 text-gray-700">
+              <td
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3 text-gray-700"
+              >
+                {{ document.invoice_number ?? "—" }}
+              </td>
+              <td
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3 text-gray-700"
+              >
+                {{ document.party_name ?? "—" }}
+              </td>
+              <td
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3 text-gray-700"
+              >
+                {{
+                  document.booking_references.length > 0
+                    ? document.booking_references.join(", ")
+                    : "—"
+                }}
+              </td>
+              <td
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3 text-gray-700"
+              >
+                {{ formatMoney(document.total_amount) }}
+              </td>
+              <td
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3 text-gray-700"
+              >
+                {{ document.processed_at ? formatDate(document.processed_at) : "—" }}
+              </td>
+              <td
+                v-if="activeTab === 'ERROR'"
+                class="px-4 py-3 text-gray-700"
+              >
+                <div class="text-xs text-red-700">{{ document.error_message ?? "Unknown error" }}</div>
+                <div class="text-xs text-gray-500 mt-1">
+                  Retryable: {{ document.error_retryable ? "yes" : "no" }}
+                </div>
+              </td>
+              <td
+                v-if="activeTab === 'ERROR'"
+                class="px-4 py-3 text-gray-700"
+              >
                 {{ formatDate(document.created_at) }}
               </td>
               <td class="px-4 py-3">
                 <Button
-                  v-if="isProcessable(document)"
+                  v-if="activeTab === 'PENDING'"
                   size="small"
                   label="Process"
                   icon="pi pi-play"
@@ -118,11 +312,24 @@
                   @click="startSingleProcessing(document.id)"
                 />
                 <Button
-                  v-else-if="isReprocessable(document)"
+                  v-else-if="activeTab === 'PROCESSED'"
                   size="small"
                   label="Reprocess"
                   icon="pi pi-refresh"
                   severity="secondary"
+                  :disabled="isProcessingCurrentDocument"
+                  :loading="
+                    isProcessingCurrentDocument &&
+                    currentQueueDocumentId === document.id
+                  "
+                  @click="startSingleProcessing(document.id)"
+                />
+                <Button
+                  v-else-if="activeTab === 'ERROR'"
+                  size="small"
+                  label="Retry & Review"
+                  icon="pi pi-refresh"
+                  severity="danger"
                   :disabled="isProcessingCurrentDocument"
                   :loading="
                     isProcessingCurrentDocument &&
@@ -391,6 +598,7 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import { useToast } from "primevue/usetoast";
 import {
+  API_BASE_URL,
   CHARGE_CATEGORY_OPTIONS,
   PROVIDER_TYPE_OPTIONS,
   confirmDocument,
@@ -402,6 +610,7 @@ import {
   type ChargeCategory,
   type ConfirmDocumentRequest,
   type DocumentListItem,
+  type DocumentType,
   type InvoiceChargeInput,
   type ProcessDocumentResponse,
   type ProviderType,
@@ -432,6 +641,15 @@ interface ReviewForm {
 }
 
 type QueueMode = "single" | "batch" | null;
+type DocumentTab = "PENDING" | "PROCESSED" | "ERROR";
+
+interface DocumentFilters {
+  date_from: string;
+  date_to: string;
+  document_type: "" | DocumentType;
+  party: string;
+  booking: string;
+}
 
 const toast = useToast();
 
@@ -439,6 +657,19 @@ const documents = ref<DocumentListItem[]>([]);
 const isLoadingDocuments = ref(false);
 const isFetchingEmails = ref(false);
 const selectedDocumentIds = ref<string[]>([]);
+const activeTab = ref<DocumentTab>("PENDING");
+const filters = ref<DocumentFilters>({
+  date_from: "",
+  date_to: "",
+  document_type: "",
+  party: "",
+  booking: "",
+});
+const tabs: Array<{ value: DocumentTab; label: string }> = [
+  { value: "PENDING", label: "Pending" },
+  { value: "PROCESSED", label: "Processed" },
+  { value: "ERROR", label: "Errors" },
+];
 
 const showReviewDialog = ref(false);
 const reviewForm = ref<ReviewForm | null>(null);
@@ -459,7 +690,9 @@ const providerTypeOptions = PROVIDER_TYPE_OPTIONS;
 const chargeCategoryOptions = CHARGE_CATEGORY_OPTIONS;
 
 const processableDocumentIds = computed(() =>
-  documents.value.filter(isQueueEligible).map((document) => document.id)
+  documents.value
+    .filter((document) => isActionableForTab(document, activeTab.value))
+    .map((document) => document.id)
 );
 
 const allProcessableSelected = computed(() => {
@@ -474,6 +707,27 @@ const allProcessableSelected = computed(() => {
 const currentQueueDocumentId = computed(
   () => processingQueue.value[queueIndex.value] ?? null
 );
+const activeTabLabel = computed(
+  () => tabs.find((tab) => tab.value === activeTab.value)?.label ?? "Documents"
+);
+const emptyStateMessage = computed(() => {
+  if (activeTab.value === "PENDING") {
+    return "No pending documents. Click \"Fetch Emails\" to import new files.";
+  }
+  if (activeTab.value === "PROCESSED") {
+    return "No processed documents found with the current filters.";
+  }
+  return "No error documents found with the current filters.";
+});
+const batchActionLabel = computed(() => {
+  if (activeTab.value === "PENDING") {
+    return "Process Selected";
+  }
+  if (activeTab.value === "PROCESSED") {
+    return "Reprocess Selected";
+  }
+  return "Retry Selected";
+});
 
 const extractErrorMessage = (error: unknown): string => {
   if (
@@ -494,20 +748,17 @@ const extractErrorMessage = (error: unknown): string => {
   return "Unexpected error";
 };
 
-const statusClass = (status: string): string => {
-  switch (status) {
-    case "PENDING":
-      return "bg-gray-100 text-gray-700";
-    case "PROCESSING":
-      return "bg-blue-100 text-blue-700";
-    case "PROCESSED":
-      return "bg-green-100 text-green-700";
-    case "ERROR":
-      return "bg-red-100 text-red-700";
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
+const clearFilters = (): void => {
+  filters.value = {
+    date_from: "",
+    date_to: "",
+    document_type: "",
+    party: "",
+    booking: "",
+  };
+  void loadDocuments();
 };
+
 
 const formatDate = (value: string): string =>
   new Date(value).toLocaleString(undefined, {
@@ -517,15 +768,43 @@ const formatDate = (value: string): string =>
     hour: "2-digit",
     minute: "2-digit",
   });
+const formatMoney = (value: string | number | null): string => {
+  if (value === null || value === "") {
+    return "—";
+  }
+  const amount = Number(value);
+  if (Number.isNaN(amount)) {
+    return "—";
+  }
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "EUR",
+  }).format(amount);
+};
 
-const isProcessable = (document: DocumentListItem): boolean =>
-  document.status === "PENDING" || document.status === "ERROR";
+const getDocumentFileUrl = (fileUrl: string): string => {
+  const apiOrigin = API_BASE_URL.replace(/\/api$/, "");
+  return `${apiOrigin}${fileUrl}`;
+};
 
-const isReprocessable = (document: DocumentListItem): boolean =>
-  document.status === "PROCESSED";
+const isActionableForTab = (document: DocumentListItem, tab: DocumentTab): boolean => {
+  if (tab === "PENDING") {
+    return document.status === "PENDING";
+  }
+  if (tab === "PROCESSED") {
+    return document.status === "PROCESSED";
+  }
+  return document.status === "ERROR";
+};
 
-const isQueueEligible = (document: DocumentListItem): boolean =>
-  isProcessable(document) || isReprocessable(document);
+const setActiveTab = (tab: DocumentTab): void => {
+  if (activeTab.value === tab) {
+    return;
+  }
+  activeTab.value = tab;
+  selectedDocumentIds.value = [];
+  void loadDocuments();
+};
 
 const toggleDocumentSelection = (documentId: string): void => {
   if (selectedDocumentIds.value.includes(documentId)) {
@@ -555,8 +834,19 @@ const toggleSelectAllProcessable = (): void => {
 const loadDocuments = async (): Promise<void> => {
   isLoadingDocuments.value = true;
   try {
-    const response = await listDocuments({ limit: 500 });
+    const response = await listDocuments({
+      status: activeTab.value,
+      document_type: filters.value.document_type || undefined,
+      date_from: filters.value.date_from || undefined,
+      date_to: filters.value.date_to || undefined,
+      party: filters.value.party.trim() || undefined,
+      booking: filters.value.booking.trim() || undefined,
+      limit: 500,
+    });
     documents.value = response.documents;
+    selectedDocumentIds.value = selectedDocumentIds.value.filter((id) =>
+      response.documents.some((document) => document.id === id)
+    );
   } catch (error) {
     toast.add({
       severity: "error",
@@ -705,9 +995,8 @@ const startBatchProcessing = async (): Promise<void> => {
   if (ids.length === 0) {
     toast.add({
       severity: "warn",
-      summary: "No processable documents selected",
-      detail:
-        "Only documents in PENDING, ERROR, or PROCESSED status can be processed.",
+      summary: "No actionable documents selected",
+      detail: `Select at least one ${activeTabLabel.value.toLowerCase()} document.`,
       life: 4000,
     });
     return;

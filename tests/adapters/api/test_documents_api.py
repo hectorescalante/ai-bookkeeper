@@ -1,26 +1,35 @@
 """Integration tests for documents API endpoints."""
 
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.adapters.persistence.repositories.document_repository import (
+    SqlAlchemyDocumentRepository,
+)
+from backend.adapters.persistence.repositories.invoice_repository import (
+    SqlAlchemyInvoiceRepository,
+)
+from backend.adapters.persistence.repositories.party_repositories import (
+    SqlAlchemyProviderRepository,
+)
 from backend.application.dtos.document_dtos import FetchEmailsResponse as FetchEmailsResponseDto
 from backend.application.dtos.invoice_dtos import ProcessInvoiceResponse
 from backend.config.dependencies import get_fetch_emails_use_case, get_process_invoice_use_case
 from backend.domain.entities.document import Document
-from backend.domain.enums import DocumentType
-from backend.domain.value_objects import EmailReference, FileHash
+from backend.domain.entities.invoice import ProviderInvoice
+from backend.domain.entities.party import Provider
+from backend.domain.enums import DocumentType, ProviderType
+from backend.domain.value_objects import EmailReference, FileHash, Money
 from backend.main import app
 
 
 @pytest.fixture
 def sample_documents(db_session):
     """Create sample documents for testing."""
-    from backend.adapters.persistence.repositories.document_repository import (
-        SqlAlchemyDocumentRepository,
-    )
 
     repo = SqlAlchemyDocumentRepository(db_session)
 
@@ -109,6 +118,93 @@ def test_list_processed_documents(client: TestClient, sample_documents) -> None:
     assert data["total"] == 1
     assert data["documents"][0]["status"] == "PROCESSED"
     assert data["documents"][0]["document_type"] == "CLIENT_INVOICE"
+
+
+@pytest.fixture
+def processed_provider_document(db_session, tmp_path):
+    """Create a processed provider document with invoice metadata and source file."""
+    document_repo = SqlAlchemyDocumentRepository(db_session)
+    invoice_repo = SqlAlchemyInvoiceRepository(db_session)
+    provider_repo = SqlAlchemyProviderRepository(db_session)
+
+    provider = Provider.create(
+        nif="B99112233",
+        provider_type=ProviderType.CARRIER,
+        name="Maersk Logistics",
+    )
+    provider_repo.save(provider)
+
+    invoice = ProviderInvoice.create(
+        invoice_number="SUP-001",
+        provider_id=provider.id,
+        provider_type=ProviderType.CARRIER,
+        invoice_date=date(2024, 1, 15),
+        bl_references=["BL-ABC-001", "BL-XYZ-009"],
+        total_amount=Money(Decimal("300.00")),
+        tax_amount=Money(Decimal("0.00")),
+    )
+    invoice_repo.save_provider_invoice(invoice)
+
+    file_path = tmp_path / "provider-invoice.pdf"
+    file_path.write_bytes(b"%PDF-1.4 provider invoice test")
+
+    document = Document.create(
+        filename="provider-invoice.pdf",
+        file_hash=FileHash.sha256("provider-001"),
+        storage_path=str(file_path),
+    )
+    document.mark_processed(DocumentType.PROVIDER_INVOICE, invoice.id)
+    document_repo.save(document)
+    return document
+
+
+def test_list_documents_filtered_by_provider_party_and_booking(
+    client: TestClient, processed_provider_document
+) -> None:
+    """Test processed filters by party and booking include enriched metadata."""
+    document = processed_provider_document
+    response = client.get(
+        "/api/documents?status=PROCESSED&document_type=PROVIDER_INVOICE&party=maersk&booking=BL-ABC"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    item = payload["documents"][0]
+    assert item["id"] == str(document.id)
+    assert item["invoice_number"] == "SUP-001"
+    assert item["party_name"] == "Maersk Logistics"
+    assert item["booking_references"] == ["BL-ABC-001", "BL-XYZ-009"]
+    assert item["total_amount"] == "300.00"
+    assert item["file_url"] == f"/api/documents/{document.id}/file"
+
+
+def test_list_documents_invalid_date_range_returns_400(client: TestClient) -> None:
+    """Test list documents rejects invalid date ranges."""
+    response = client.get("/api/documents?date_from=2024-02-01&date_to=2024-01-01")
+    assert response.status_code == 400
+    assert "date_from cannot be greater than date_to" in response.json()["detail"]
+
+
+def test_get_document_file_success(
+    client: TestClient, processed_provider_document
+) -> None:
+    """Test document file endpoint returns PDF content."""
+    document = processed_provider_document
+    response = client.get(f"/api/documents/{document.id}/file")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF-1.4")
+
+
+def test_get_document_file_not_available_returns_404(
+    client: TestClient, sample_documents
+) -> None:
+    """Test document file endpoint returns 404 when storage path is absent."""
+    pending_document = sample_documents[0]
+    response = client.get(f"/api/documents/{pending_document.id}/file")
+    assert response.status_code == 404
+    assert "not available" in response.json()["detail"].lower()
 
 
 class _StubFetchEmailsUseCase:

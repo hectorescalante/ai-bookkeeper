@@ -34,6 +34,24 @@ class SqlAlchemyInvoiceRepository(InvoiceRepository):
         self.session.add(model)
         self.session.commit()
 
+    def find_client_invoice_by_id(self, invoice_id: UUID) -> ClientInvoice | None:
+        """Find client invoice by invoice ID."""
+        model = self.session.query(ClientInvoiceModel).filter(ClientInvoiceModel.id == invoice_id).first()
+        if model is None:
+            return None
+        return model_to_client_invoice(model)
+
+    def find_provider_invoice_by_id(self, invoice_id: UUID) -> ProviderInvoice | None:
+        """Find provider invoice by invoice ID."""
+        model = (
+            self.session.query(ProviderInvoiceModel)
+            .filter(ProviderInvoiceModel.id == invoice_id)
+            .first()
+        )
+        if model is None:
+            return None
+        return model_to_provider_invoice(model)
+
     def find_client_invoice(self, invoice_number: str, client_id: UUID) -> ClientInvoice | None:
         """Find client invoice by number and client ID."""
         model = (
