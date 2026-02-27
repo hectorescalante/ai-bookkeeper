@@ -80,6 +80,7 @@ def list_documents(
                 processed_at=doc.processed_at,
                 email_sender=doc.email_sender,
                 email_subject=doc.email_subject,
+                pdf_count_in_email=doc.pdf_count_in_email,
                 error_message=doc.error_message,
                 error_retryable=doc.error_retryable,
                 invoice_number=doc.invoice_number,
@@ -87,6 +88,7 @@ def list_documents(
                 booking_references=doc.booking_references or [],
                 total_amount=doc.total_amount,
                 file_url=doc.file_url,
+                manually_edited_fields=doc.manually_edited_fields,
             )
             for doc in documents
         ],
@@ -160,6 +162,8 @@ def _build_process_response(result: ProcessInvoiceResponse) -> ProcessDocumentRe
         bl_references=result.bl_references,
         charges=result.charges,
         totals=result.totals,
+        shipping_details=result.shipping_details,
+        field_statuses=result.field_statuses,
         extraction_notes=result.extraction_notes,
         overall_confidence=result.overall_confidence,
         warnings=result.warnings,

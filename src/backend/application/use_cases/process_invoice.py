@@ -116,6 +116,9 @@ class ProcessInvoiceUseCase:
             issuer = invoice_data.get("issuer", {}) or {}
             recipient = invoice_data.get("recipient", {}) or {}
             totals = invoice_data.get("totals", {}) or {}
+            shipping_details = invoice_data.get("shipping_details", {}) or {}
+            if not isinstance(shipping_details, dict):
+                shipping_details = {}
 
             # Determine overall confidence
             overall_confidence = self._calculate_overall_confidence(
@@ -128,6 +131,15 @@ class ProcessInvoiceUseCase:
 
             warnings: list[str] = []
             errors: list[str] = []
+            field_statuses = self._build_field_statuses(
+                document_type=result.document_type or "OTHER",
+                invoice_data=invoice_data,
+                issuer=issuer,
+                recipient=recipient,
+                totals=totals,
+                shipping_details=shipping_details,
+            )
+            warnings.extend(self._build_uncertainty_warnings(field_statuses))
 
             if not currency_valid:
                 errors.append(
@@ -159,6 +171,8 @@ class ProcessInvoiceUseCase:
                 bl_references=invoice_data.get("bl_references", []),
                 charges=invoice_data.get("charges", []),
                 totals=totals,
+                shipping_details=shipping_details,
+                field_statuses=field_statuses,
                 extraction_notes=result.extraction_notes,
                 overall_confidence=overall_confidence,
                 warnings=warnings,
@@ -317,3 +331,117 @@ class ProcessInvoiceUseCase:
                 return level.upper()
 
         return "LOW"
+
+    def _build_field_statuses(
+        self,
+        document_type: str,
+        invoice_data: dict[str, Any],
+        issuer: dict[str, Any],
+        recipient: dict[str, Any],
+        totals: dict[str, Any],
+        shipping_details: dict[str, Any],
+    ) -> dict[str, str]:
+        pol = shipping_details.get("pol")
+        pod = shipping_details.get("pod")
+        pol_data = pol if isinstance(pol, dict) else {}
+        pod_data = pod if isinstance(pod, dict) else {}
+        bl_references = invoice_data.get("bl_references")
+        charges = invoice_data.get("charges")
+        statuses = {
+            "invoice_number": self._field_status(
+                invoice_data.get("invoice_number"),
+                invoice_data.get("invoice_number_confidence"),
+            ),
+            "invoice_date": self._field_status(
+                invoice_data.get("invoice_date"),
+                invoice_data.get("invoice_date_confidence"),
+            ),
+            "issuer_name": self._field_status(issuer.get("name")),
+            "issuer_nif": self._field_status(
+                issuer.get("nif"),
+                issuer.get("nif_confidence"),
+            ),
+            "recipient_name": self._field_status(recipient.get("name")),
+            "recipient_nif": self._field_status(
+                recipient.get("nif"),
+                recipient.get("nif_confidence"),
+            ),
+            "provider_type": self._field_status(
+                invoice_data.get("provider_type"),
+                invoice_data.get("provider_type_confidence"),
+            ),
+            "totals.total": self._field_status(
+                totals.get("total"),
+                totals.get("total_confidence"),
+            ),
+            "bl_references": self._collection_status(
+                bl_references,
+                "bl_confidence",
+            ),
+            "charges": self._collection_status(charges, "amount_confidence"),
+            "shipping.pol.code": self._field_status(pol_data.get("code")),
+            "shipping.pod.code": self._field_status(pod_data.get("code")),
+            "shipping.vessel": self._field_status(shipping_details.get("vessel")),
+            "shipping.containers": self._collection_status(
+                shipping_details.get("containers"),
+            ),
+        }
+
+        if document_type != DocumentType.PROVIDER_INVOICE.value:
+            statuses["provider_type"] = "ok"
+
+        return statuses
+
+    def _build_uncertainty_warnings(self, field_statuses: dict[str, str]) -> list[str]:
+        warning_fields = {
+            "invoice_number": "Invoice number",
+            "invoice_date": "Invoice date",
+            "issuer_nif": "Issuer NIF",
+            "recipient_nif": "Recipient NIF",
+            "totals.total": "Total amount",
+            "bl_references": "BL references",
+        }
+        warnings: list[str] = []
+        for key, label in warning_fields.items():
+            status = field_statuses.get(key, "ok")
+            if status == "not_found":
+                warnings.append(f"{label}: not found")
+            elif status == "ambiguous":
+                warnings.append(f"{label}: ambiguous (low confidence)")
+        return warnings
+
+    @staticmethod
+    def _field_status(value: Any, confidence: Any | None = None) -> str:
+        if ProcessInvoiceUseCase._is_empty_value(value):
+            return "not_found"
+
+        if isinstance(confidence, str) and confidence.lower() == "low":
+            return "ambiguous"
+
+        return "ok"
+
+    @staticmethod
+    def _collection_status(
+        value: Any,
+        confidence_key: str | None = None,
+    ) -> str:
+        if not isinstance(value, list) or len(value) == 0:
+            return "not_found"
+
+        if confidence_key:
+            for item in value:
+                if not isinstance(item, dict):
+                    continue
+                confidence_value = item.get(confidence_key)
+                if isinstance(confidence_value, str) and confidence_value.lower() == "low":
+                    return "ambiguous"
+
+        return "ok"
+
+    @staticmethod
+    def _is_empty_value(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip() == ""
+        return False

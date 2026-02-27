@@ -20,6 +20,7 @@ class DocumentListItem(BaseModel):
     # Email info
     email_sender: str | None
     email_subject: str | None
+    pdf_count_in_email: int | None
 
     # Error info
     error_message: str | None
@@ -30,6 +31,7 @@ class DocumentListItem(BaseModel):
     booking_references: list[str]
     total_amount: Decimal | None
     file_url: str | None
+    manually_edited_fields: list[str]
 
 
 class ListDocumentsResponse(BaseModel):

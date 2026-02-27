@@ -42,6 +42,8 @@ class ProcessInvoiceResponse:
     bl_references: list[dict[str, Any]] = field(default_factory=list)
     charges: list[dict[str, Any]] = field(default_factory=list)
     totals: dict[str, Any] = field(default_factory=dict)
+    shipping_details: dict[str, Any] = field(default_factory=dict)
+    field_statuses: dict[str, str] = field(default_factory=dict)
 
     extraction_notes: str | None = None
 

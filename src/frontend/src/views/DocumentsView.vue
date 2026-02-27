@@ -144,6 +144,12 @@
                 v-if="activeTab === 'PENDING'"
                 class="px-4 py-3"
               >
+                PDFs
+              </th>
+              <th
+                v-if="activeTab === 'PENDING'"
+                class="px-4 py-3"
+              >
                 Created
               </th>
               <th
@@ -181,6 +187,12 @@
                 class="px-4 py-3"
               >
                 Processed
+              </th>
+              <th
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3"
+              >
+                Review history
               </th>
               <th
                 v-if="activeTab === 'ERROR'"
@@ -241,6 +253,12 @@
                 v-if="activeTab === 'PENDING'"
                 class="px-4 py-3 text-gray-700"
               >
+                {{ document.pdf_count_in_email ?? "—" }}
+              </td>
+              <td
+                v-if="activeTab === 'PENDING'"
+                class="px-4 py-3 text-gray-700"
+              >
                 {{ formatDate(document.created_at) }}
               </td>
               <td
@@ -284,6 +302,18 @@
                 {{ document.processed_at ? formatDate(document.processed_at) : "—" }}
               </td>
               <td
+                v-if="activeTab === 'PROCESSED'"
+                class="px-4 py-3 text-gray-700"
+              >
+                <div
+                  v-if="document.manually_edited_fields.length > 0"
+                  class="text-xs text-amber-700"
+                >
+                  {{ document.manually_edited_fields.join(", ") }}
+                </div>
+                <span v-else>—</span>
+              </td>
+              <td
                 v-if="activeTab === 'ERROR'"
                 class="px-4 py-3 text-gray-700"
               >
@@ -324,19 +354,30 @@
                   "
                   @click="startSingleProcessing(document.id)"
                 />
-                <Button
+                <div
                   v-else-if="activeTab === 'ERROR'"
-                  size="small"
-                  label="Retry & Review"
-                  icon="pi pi-refresh"
-                  severity="danger"
-                  :disabled="isProcessingCurrentDocument"
-                  :loading="
-                    isProcessingCurrentDocument &&
-                    currentQueueDocumentId === document.id
-                  "
-                  @click="startSingleProcessing(document.id)"
-                />
+                  class="flex gap-2"
+                >
+                  <Button
+                    size="small"
+                    label="Retry"
+                    icon="pi pi-refresh"
+                    severity="danger"
+                    :disabled="isProcessingCurrentDocument"
+                    :loading="
+                      isProcessingCurrentDocument &&
+                      currentQueueDocumentId === document.id
+                    "
+                    @click="startSingleProcessing(document.id)"
+                  />
+                  <Button
+                    size="small"
+                    label="Edit manually"
+                    severity="secondary"
+                    :disabled="isProcessingCurrentDocument"
+                    @click="startManualReview(document.id)"
+                  />
+                </div>
               </td>
             </tr>
           </tbody>
@@ -377,14 +418,39 @@
           </ul>
         </div>
 
+        <div
+          v-if="reviewUncertaintyRows(reviewForm).length > 0"
+          class="rounded bg-amber-50 p-3"
+        >
+          <p class="font-semibold text-amber-800 mb-1">
+            Uncertain fields (AI marked as not found or ambiguous)
+          </p>
+          <ul class="list-disc ml-5 text-sm text-amber-800">
+            <li
+              v-for="item in reviewUncertaintyRows(reviewForm)"
+              :key="`${item.field}-${item.status}`"
+            >
+              {{ item.label }}: {{ item.status === "not_found" ? "not found" : "ambiguous" }}
+            </li>
+          </ul>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-600">Document type</label>
-            <InputText
-              class="w-full"
-              :model-value="reviewForm.document_type"
-              disabled
-            />
+            <select
+              v-model="reviewForm.document_type"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+              @change="markEdited('document_type')"
+            >
+              <option
+                v-for="option in documentTypeOptions"
+                :key="option"
+                :value="option"
+              >
+                {{ option }}
+              </option>
+            </select>
           </div>
           <div>
             <label class="text-xs text-gray-600">Overall confidence</label>
@@ -467,6 +533,60 @@
               :model-value="`${reviewForm.currency_detected} (${reviewForm.currency_valid ? 'valid' : 'invalid'})`"
               disabled
             />
+          </div>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-2">Shipping details</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-600">POL code</label>
+              <InputText
+                v-model="reviewForm.shipping_pol_code"
+                class="w-full"
+                @update:model-value="markEdited('shipping_details.pol.code')"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-600">POL name</label>
+              <InputText
+                v-model="reviewForm.shipping_pol_name"
+                class="w-full"
+                @update:model-value="markEdited('shipping_details.pol.name')"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-600">POD code</label>
+              <InputText
+                v-model="reviewForm.shipping_pod_code"
+                class="w-full"
+                @update:model-value="markEdited('shipping_details.pod.code')"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-600">POD name</label>
+              <InputText
+                v-model="reviewForm.shipping_pod_name"
+                class="w-full"
+                @update:model-value="markEdited('shipping_details.pod.name')"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-600">Vessel</label>
+              <InputText
+                v-model="reviewForm.shipping_vessel"
+                class="w-full"
+                @update:model-value="markEdited('shipping_details.vessel')"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-600">Containers (comma separated)</label>
+              <InputText
+                v-model="reviewForm.shipping_containers"
+                class="w-full"
+                @update:model-value="markEdited('shipping_details.containers')"
+              />
+            </div>
           </div>
         </div>
 
@@ -635,9 +755,21 @@ interface ReviewForm {
   bl_references: Array<string | Record<string, unknown>>;
   charges: InvoiceChargeInput[];
   totals: Record<string, unknown>;
-  shipping_details: Record<string, unknown>;
+  shipping_pol_code: string;
+  shipping_pol_name: string;
+  shipping_pod_code: string;
+  shipping_pod_name: string;
+  shipping_vessel: string;
+  shipping_containers: string;
+  field_statuses: Record<string, FieldStatus>;
   warnings: string[];
   errors: string[];
+}
+type FieldStatus = "ok" | "not_found" | "ambiguous";
+interface UncertaintyRow {
+  field: string;
+  label: string;
+  status: Exclude<FieldStatus, "ok">;
 }
 
 type QueueMode = "single" | "batch" | null;
@@ -688,6 +820,11 @@ const batchStats = ref({
 });
 const providerTypeOptions = PROVIDER_TYPE_OPTIONS;
 const chargeCategoryOptions = CHARGE_CATEGORY_OPTIONS;
+const documentTypeOptions: DocumentType[] = [
+  "CLIENT_INVOICE",
+  "PROVIDER_INVOICE",
+  "OTHER",
+];
 
 const processableDocumentIds = computed(() =>
   documents.value
@@ -757,6 +894,78 @@ const clearFilters = (): void => {
     booking: "",
   };
   void loadDocuments();
+};
+const fieldLabelMap: Record<string, string> = {
+  invoice_number: "Invoice number",
+  invoice_date: "Invoice date",
+  issuer_name: "Issuer name",
+  issuer_nif: "Issuer NIF",
+  recipient_name: "Recipient name",
+  recipient_nif: "Recipient NIF",
+  provider_type: "Provider type",
+  "totals.total": "Total amount",
+  bl_references: "BL references",
+  charges: "Charge lines",
+  "shipping.pol.code": "POL code",
+  "shipping.pod.code": "POD code",
+  "shipping.vessel": "Vessel",
+  "shipping.containers": "Containers",
+};
+
+const reviewUncertaintyRows = (form: ReviewForm): UncertaintyRow[] =>
+  Object.entries(form.field_statuses)
+    .filter(([, status]) => status === "not_found" || status === "ambiguous")
+    .map(([field, status]) => ({
+      field,
+      label: fieldLabelMap[field] ?? field,
+      status: status as UncertaintyRow["status"],
+    }));
+
+const asObjectRecord = (value: unknown): Record<string, unknown> | null => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+};
+
+const asString = (value: unknown): string =>
+  typeof value === "string" ? value : "";
+
+const parseContainerList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => String(item).trim())
+    .filter((item) => item.length > 0);
+};
+
+const normalizeContainerInput = (value: string): string[] =>
+  value
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
+const mapShippingDetailsToForm = (
+  details: Record<string, unknown>
+): {
+  pol_code: string;
+  pol_name: string;
+  pod_code: string;
+  pod_name: string;
+  vessel: string;
+  containers: string[];
+} => {
+  const pol = asObjectRecord(details.pol);
+  const pod = asObjectRecord(details.pod);
+  return {
+    pol_code: asString(pol?.code),
+    pol_name: asString(pol?.name),
+    pod_code: asString(pod?.code),
+    pod_name: asString(pod?.name),
+    vessel: asString(details.vessel),
+    containers: parseContainerList(details.containers),
+  };
 };
 
 
@@ -884,35 +1093,45 @@ const handleFetchEmails = async (): Promise<void> => {
 
 const mapProcessResponseToReviewForm = (
   response: ProcessDocumentResponse
-): ReviewForm => ({
-  document_id: response.document_id,
-  document_type: response.document_type,
-  ai_model: response.ai_model,
-  raw_json: response.raw_json,
-  overall_confidence: response.overall_confidence,
-  manually_edited_fields: [],
-  invoice_number: response.invoice_number,
-  invoice_date: response.invoice_date,
-  issuer_name: response.issuer_name,
-  issuer_nif: response.issuer_nif,
-  recipient_name: response.recipient_name,
-  recipient_nif: response.recipient_nif,
-  provider_type: response.provider_type ?? "",
-  currency_valid: response.currency_valid,
-  currency_detected: response.currency_detected,
-  bl_references: response.bl_references,
-  charges: response.charges.map((charge) => ({
-    bl_reference: charge.bl_reference,
-    description: charge.description,
-    category: charge.category as ChargeCategory,
-    amount: String(charge.amount),
-    container: charge.container ?? null,
-  })),
-  totals: { ...response.totals },
-  shipping_details: {},
-  warnings: [...response.warnings],
-  errors: [...response.errors],
-});
+): ReviewForm => {
+  const shippingDetails = mapShippingDetailsToForm(response.shipping_details);
+
+  return {
+    document_id: response.document_id,
+    document_type: response.document_type,
+    ai_model: response.ai_model,
+    raw_json: response.raw_json,
+    overall_confidence: response.overall_confidence,
+    manually_edited_fields: [],
+    invoice_number: response.invoice_number,
+    invoice_date: response.invoice_date,
+    issuer_name: response.issuer_name,
+    issuer_nif: response.issuer_nif,
+    recipient_name: response.recipient_name,
+    recipient_nif: response.recipient_nif,
+    provider_type: response.provider_type ?? "",
+    currency_valid: response.currency_valid,
+    currency_detected: response.currency_detected,
+    bl_references: response.bl_references,
+    charges: response.charges.map((charge) => ({
+      bl_reference: charge.bl_reference,
+      description: charge.description,
+      category: charge.category as ChargeCategory,
+      amount: String(charge.amount),
+      container: charge.container ?? null,
+    })),
+    totals: { ...response.totals },
+    shipping_pol_code: shippingDetails.pol_code,
+    shipping_pol_name: shippingDetails.pol_name,
+    shipping_pod_code: shippingDetails.pod_code,
+    shipping_pod_name: shippingDetails.pod_name,
+    shipping_vessel: shippingDetails.vessel,
+    shipping_containers: shippingDetails.containers.join(", "),
+    field_statuses: { ...response.field_statuses },
+    warnings: [...response.warnings],
+    errors: [...response.errors],
+  };
+};
 
 const resetQueueState = (): void => {
   processingQueue.value = [];
@@ -984,6 +1203,64 @@ const startSingleProcessing = async (documentId: string): Promise<void> => {
   await loadNextQueueDocument();
 };
 
+const createManualReviewForm = (document: DocumentListItem): ReviewForm => {
+  const bookingReferences = [...document.booking_references];
+  return {
+    document_id: document.id,
+    document_type: document.document_type ?? "PROVIDER_INVOICE",
+    ai_model: "manual-entry",
+    raw_json: "{}",
+    overall_confidence: "LOW",
+    manually_edited_fields: [],
+    invoice_number: document.invoice_number,
+    invoice_date: null,
+    issuer_name: null,
+    issuer_nif: null,
+    recipient_name: null,
+    recipient_nif: null,
+    provider_type: "",
+    currency_valid: true,
+    currency_detected: "EUR",
+    bl_references: bookingReferences,
+    charges: [
+      {
+        bl_reference: bookingReferences[0] ?? null,
+        description: "",
+        category: "OTHER",
+        amount: "",
+        container: null,
+      },
+    ],
+    totals: {},
+    shipping_pol_code: "",
+    shipping_pol_name: "",
+    shipping_pod_code: "",
+    shipping_pod_name: "",
+    shipping_vessel: "",
+    shipping_containers: "",
+    field_statuses: {},
+    warnings: ["Manual review mode: complete required fields before saving."],
+    errors: [],
+  };
+};
+
+const startManualReview = (documentId: string): void => {
+  const document = documents.value.find((item) => item.id === documentId);
+  if (!document) {
+    return;
+  }
+
+  batchStats.value = { processed: 0, skipped: 0, errors: 0 };
+  processingQueue.value = [documentId];
+  queueIndex.value = 0;
+  queueMode.value = "single";
+  isProcessingCurrentDocument.value = true;
+  reviewForm.value = createManualReviewForm(document);
+  editedFields.value = [];
+  showRawJson.value = false;
+  showReviewDialog.value = true;
+};
+
 const startBatchProcessing = async (): Promise<void> => {
   if (selectedDocumentIds.value.length === 0) {
     return;
@@ -1034,6 +1311,33 @@ const buildConfirmPayload = (): ConfirmDocumentRequest => {
     throw new Error("No review form loaded");
   }
 
+  const shipping_details: Record<string, unknown> = {};
+  const polCode = form.shipping_pol_code.trim();
+  if (polCode.length > 0) {
+    shipping_details.pol = {
+      code: polCode,
+      name: form.shipping_pol_name.trim(),
+    };
+  }
+
+  const podCode = form.shipping_pod_code.trim();
+  if (podCode.length > 0) {
+    shipping_details.pod = {
+      code: podCode,
+      name: form.shipping_pod_name.trim(),
+    };
+  }
+
+  const vessel = form.shipping_vessel.trim();
+  if (vessel.length > 0) {
+    shipping_details.vessel = vessel;
+  }
+
+  const containers = normalizeContainerInput(form.shipping_containers);
+  if (containers.length > 0) {
+    shipping_details.containers = containers;
+  }
+
   return {
     document_id: form.document_id,
     document_type: form.document_type,
@@ -1062,7 +1366,7 @@ const buildConfirmPayload = (): ConfirmDocumentRequest => {
       container: charge.container ?? null,
     })),
     totals: form.totals,
-    shipping_details: form.shipping_details,
+    shipping_details,
   };
 };
 

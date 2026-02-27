@@ -58,6 +58,8 @@ class ProcessDocumentResponse(BaseModel):
     bl_references: list[dict[str, Any]] = Field(default_factory=list)
     charges: list[dict[str, Any]] = Field(default_factory=list)
     totals: dict[str, Any] = Field(default_factory=dict)
+    shipping_details: dict[str, Any] = Field(default_factory=dict)
+    field_statuses: dict[str, str] = Field(default_factory=dict)
 
     extraction_notes: str | None = None
     overall_confidence: str = "HIGH"
@@ -206,6 +208,8 @@ def process_document(
             bl_references=result.bl_references,
             charges=result.charges,
             totals=result.totals,
+            shipping_details=result.shipping_details,
+            field_statuses=result.field_statuses,
             extraction_notes=result.extraction_notes,
             overall_confidence=result.overall_confidence,
             warnings=result.warnings,

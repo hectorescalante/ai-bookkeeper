@@ -61,6 +61,7 @@ export interface DocumentListItem {
   processed_at: string | null;
   email_sender: string | null;
   email_subject: string | null;
+  pdf_count_in_email: number | null;
   error_message: string | null;
   error_retryable: boolean | null;
   invoice_number: string | null;
@@ -68,6 +69,7 @@ export interface DocumentListItem {
   booking_references: string[];
   total_amount: string | number | null;
   file_url: string | null;
+  manually_edited_fields: string[];
 }
 
 export interface BookingChargeItem {
@@ -258,6 +260,8 @@ export interface ProcessDocumentResponse {
   bl_references: Array<string | Record<string, unknown>>;
   charges: InvoiceChargeInput[];
   totals: Record<string, unknown>;
+  shipping_details: Record<string, unknown>;
+  field_statuses: Record<string, "ok" | "not_found" | "ambiguous">;
   extraction_notes: string | null;
   overall_confidence: string;
   warnings: string[];

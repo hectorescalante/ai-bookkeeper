@@ -22,8 +22,8 @@ from backend.config.dependencies import get_fetch_emails_use_case, get_process_i
 from backend.domain.entities.document import Document
 from backend.domain.entities.invoice import ProviderInvoice
 from backend.domain.entities.party import Provider
-from backend.domain.enums import DocumentType, ProviderType
-from backend.domain.value_objects import EmailReference, FileHash, Money
+from backend.domain.enums import ConfidenceLevel, DocumentType, ProviderType
+from backend.domain.value_objects import EmailReference, ExtractionMetadata, FileHash, Money
 from backend.main import app
 
 
@@ -106,6 +106,59 @@ def test_document_list_includes_email_info(client: TestClient, sample_documents)
     doc = data["documents"][0]
     assert doc["email_sender"] == "sender@example.com"
     assert doc["email_subject"] == "Invoice"
+    assert doc["pdf_count_in_email"] == 1
+
+
+def test_pending_documents_include_pdf_count_per_email(
+    client: TestClient, db_session
+) -> None:
+    """Test pending list exposes number of PDFs imported from the same email."""
+    repo = SqlAlchemyDocumentRepository(db_session)
+
+    first = Document.create(
+        filename="email-batch-1.pdf",
+        file_hash=FileHash.sha256("batch-1"),
+        email_reference=EmailReference(
+            message_id="msg-batch",
+            subject="Batch invoices",
+            sender="batch@example.com",
+            received_at=datetime.now(),
+        ),
+    )
+    second = Document.create(
+        filename="email-batch-2.pdf",
+        file_hash=FileHash.sha256("batch-2"),
+        email_reference=EmailReference(
+            message_id="msg-batch",
+            subject="Batch invoices",
+            sender="batch@example.com",
+            received_at=datetime.now(),
+        ),
+    )
+    third = Document.create(
+        filename="email-single.pdf",
+        file_hash=FileHash.sha256("single-1"),
+        email_reference=EmailReference(
+            message_id="msg-single",
+            subject="Single invoice",
+            sender="single@example.com",
+            received_at=datetime.now(),
+        ),
+    )
+    repo.save(first)
+    repo.save(second)
+    repo.save(third)
+
+    response = client.get("/api/documents?status=PENDING")
+    assert response.status_code == 200
+    items = response.json()["documents"]
+
+    grouped = [item for item in items if item["email_subject"] == "Batch invoices"]
+    assert len(grouped) == 2
+    assert all(item["pdf_count_in_email"] == 2 for item in grouped)
+
+    single = next(item for item in items if item["email_subject"] == "Single invoice")
+    assert single["pdf_count_in_email"] == 1
 
 
 def test_list_processed_documents(client: TestClient, sample_documents) -> None:
@@ -143,6 +196,12 @@ def processed_provider_document(db_session, tmp_path):
         total_amount=Money(Decimal("300.00")),
         tax_amount=Money(Decimal("0.00")),
     )
+    invoice.extraction_metadata = ExtractionMetadata(
+        ai_model="gemini-3-pro",
+        overall_confidence=ConfidenceLevel.HIGH,
+        raw_json="{}",
+        manually_edited_fields=("invoice_number", "shipping_details.pol.code"),
+    )
     invoice_repo.save_provider_invoice(invoice)
 
     file_path = tmp_path / "provider-invoice.pdf"
@@ -177,6 +236,10 @@ def test_list_documents_filtered_by_provider_party_and_booking(
     assert item["booking_references"] == ["BL-ABC-001", "BL-XYZ-009"]
     assert item["total_amount"] == "300.00"
     assert item["file_url"] == f"/api/documents/{document.id}/file"
+    assert item["manually_edited_fields"] == [
+        "invoice_number",
+        "shipping_details.pol.code",
+    ]
 
 
 def test_list_documents_invalid_date_range_returns_400(client: TestClient) -> None:
@@ -298,6 +361,18 @@ def test_retry_document_endpoint_success(client: TestClient) -> None:
                 bl_references=[{"bl_number": "BL-001"}],
                 charges=[],
                 totals={"total": "100.00"},
+                shipping_details={
+                    "pol": {"code": "CNSHA", "name": "Shanghai"},
+                    "pod": {"code": "ESVLC", "name": "Valencia"},
+                    "vessel": "MSC Aurora",
+                    "containers": ["MSCU1234567"],
+                },
+                field_statuses={
+                    "invoice_number": "ok",
+                    "issuer_nif": "ok",
+                    "recipient_nif": "ok",
+                    "bl_references": "ok",
+                },
                 extraction_notes=None,
                 overall_confidence="HIGH",
                 warnings=[],
@@ -315,6 +390,10 @@ def test_retry_document_endpoint_success(client: TestClient) -> None:
     assert payload["document_id"] == str(document_id)
     assert payload["document_type"] == "CLIENT_INVOICE"
     assert payload["invoice_number"] == "INV-123"
+    assert payload["shipping_details"]["pol"]["code"] == "CNSHA"
+    assert payload["shipping_details"]["vessel"] == "MSC Aurora"
+    assert payload["shipping_details"]["containers"] == ["MSCU1234567"]
+    assert payload["field_statuses"]["invoice_number"] == "ok"
 
 
 def test_retry_document_endpoint_rate_limit_maps_to_429(client: TestClient) -> None:
@@ -354,6 +433,18 @@ def test_reprocess_document_endpoint_success(client: TestClient) -> None:
             bl_references=[{"bl_number": "BL-002"}],
             charges=[],
             totals={"total": "120.00"},
+            shipping_details={
+                "pol": {"code": "USLAX", "name": "Los Angeles"},
+                "pod": {"code": "ESBCN", "name": "Barcelona"},
+                "vessel": "Ever Beacon",
+                "containers": ["TGHU1234567", "TGHU7654321"],
+            },
+            field_statuses={
+                "invoice_number": "ambiguous",
+                "issuer_nif": "ok",
+                "recipient_nif": "ok",
+                "bl_references": "ok",
+            },
             extraction_notes=None,
             overall_confidence="HIGH",
             warnings=[],
@@ -371,6 +462,10 @@ def test_reprocess_document_endpoint_success(client: TestClient) -> None:
     assert payload["document_id"] == str(document_id)
     assert payload["invoice_number"] == "INV-555"
     assert payload["document_type"] == "CLIENT_INVOICE"
+    assert payload["shipping_details"]["pol"]["code"] == "USLAX"
+    assert payload["shipping_details"]["pod"]["code"] == "ESBCN"
+    assert payload["shipping_details"]["containers"] == ["TGHU1234567", "TGHU7654321"]
+    assert payload["field_statuses"]["invoice_number"] == "ambiguous"
 
 
 def test_reprocess_document_endpoint_timeout_maps_to_504(client: TestClient) -> None:

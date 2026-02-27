@@ -88,6 +88,12 @@ def _make_extraction_result() -> ExtractionResult:
                 "total": 1512.50,
                 "total_confidence": "high",
             },
+            "shipping_details": {
+                "pol": {"code": "CNSHA", "name": "Shanghai"},
+                "pod": {"code": "ESVLC", "name": "Valencia"},
+                "vessel": "MSC Aurora",
+                "containers": ["MSCU1234567", "MSCU7654321"],
+            },
         },
         "extraction_notes": None,
     }
@@ -162,6 +168,18 @@ class TestProcessInvoiceUseCase:
         assert result.ai_model == "gemini-3-pro"
         assert result.currency_valid is True
         assert len(result.charges) == 1
+        assert result.shipping_details["vessel"] == "MSC Aurora"
+        assert result.shipping_details["pol"] == {
+            "code": "CNSHA",
+            "name": "Shanghai",
+        }
+        assert result.shipping_details["containers"] == [
+            "MSCU1234567",
+            "MSCU7654321",
+        ]
+        assert result.field_statuses["invoice_number"] == "ok"
+        assert result.field_statuses["issuer_nif"] == "ok"
+        assert result.field_statuses["bl_references"] == "ok"
 
         # Verify document was marked as processing
         doc_repo.update.assert_called()
@@ -397,6 +415,45 @@ class TestProcessInvoiceUseCase:
         assert response.currency_valid is False
         assert response.currency_detected == "USD"
         assert any("EUR" in e for e in response.errors)
+
+    def test_process_invoice_marks_not_found_and_ambiguous_fields(self) -> None:
+        """Test low-confidence and missing values are surfaced as HU-IA5 statuses/warnings."""
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            _create_dummy_pdf(f.name)
+            doc = _make_document(storage_path=f.name)
+
+        result = _make_extraction_result()
+        invoice = result.parsed_data["invoice"]
+        invoice["invoice_number"] = None
+        invoice["invoice_number_confidence"] = "low"
+        invoice["totals"]["total"] = 1512.50
+        invoice["totals"]["total_confidence"] = "low"
+        invoice["bl_references"] = []
+
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = doc
+        settings_repo = MagicMock()
+        settings_repo.get.return_value = _make_settings()
+        company_repo = MagicMock()
+        company_repo.get.return_value = _make_company()
+        ai_extractor = MagicMock()
+        ai_extractor.extract_invoice_data.return_value = result
+
+        use_case = ProcessInvoiceUseCase(
+            document_repo=doc_repo,
+            settings_repo=settings_repo,
+            company_repo=company_repo,
+            ai_extractor=ai_extractor,
+        )
+
+        response = use_case.execute(ProcessInvoiceRequest(document_id=doc.id))
+
+        assert response.field_statuses["invoice_number"] == "not_found"
+        assert response.field_statuses["totals.total"] == "ambiguous"
+        assert response.field_statuses["bl_references"] == "not_found"
+        assert "Invoice number: not found" in response.warnings
+        assert "Total amount: ambiguous (low confidence)" in response.warnings
+        assert "BL references: not found" in response.warnings
 
     def test_process_invoice_scanned_pdf_includes_page_images(
         self,

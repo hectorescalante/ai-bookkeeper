@@ -49,6 +49,7 @@ class ListDocumentsUseCase:
 
         documents = self._get_documents(request.status)
         documents = sorted(documents, key=lambda doc: doc.created_at, reverse=True)
+        email_pdf_counts = self._build_email_pdf_counts(documents)
 
         items: list[DocumentListItem] = []
         for doc in documents:
@@ -61,7 +62,13 @@ class ListDocumentsUseCase:
             if date_to and filter_date > date_to:
                 continue
 
-            invoice_number, party_name, booking_references, total_amount = self._get_metadata(doc)
+            (
+                invoice_number,
+                party_name,
+                booking_references,
+                total_amount,
+                manually_edited_fields,
+            ) = self._get_metadata(doc)
 
             if party_filter and party_filter not in (party_name or "").lower():
                 continue
@@ -80,6 +87,11 @@ class ListDocumentsUseCase:
                     processed_at=doc.processed_at,
                     email_sender=doc.email_reference.sender if doc.email_reference else None,
                     email_subject=doc.email_reference.subject if doc.email_reference else None,
+                    pdf_count_in_email=(
+                        email_pdf_counts.get(doc.email_reference.message_id, 1)
+                        if doc.email_reference is not None
+                        else None
+                    ),
                     error_message=doc.error_info.error_message if doc.error_info else None,
                     error_retryable=doc.error_info.is_retryable if doc.error_info else None,
                     invoice_number=invoice_number,
@@ -87,6 +99,7 @@ class ListDocumentsUseCase:
                     booking_references=booking_references,
                     total_amount=total_amount,
                     file_url=f"/api/documents/{doc.id}/file" if doc.storage_path else None,
+                    manually_edited_fields=manually_edited_fields,
                 )
             )
 
@@ -108,41 +121,61 @@ class ListDocumentsUseCase:
             documents.extend(self.document_repo.list_by_status(current_status))
         return documents
 
+    @staticmethod
+    def _build_email_pdf_counts(documents: list[Document]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for document in documents:
+            email_reference = document.email_reference
+            if email_reference is None:
+                continue
+            counts[email_reference.message_id] = (
+                counts.get(email_reference.message_id, 0) + 1
+            )
+        return counts
+
     def _get_metadata(
         self,
         document: Document,
-    ) -> tuple[str | None, str | None, list[str], Decimal | None]:
+    ) -> tuple[str | None, str | None, list[str], Decimal | None, list[str]]:
         if document.invoice_id is None:
-            return None, None, [], None
+            return None, None, [], None, []
 
         invoice_id: UUID = document.invoice_id
         if document.document_type == DocumentType.CLIENT_INVOICE:
             client_invoice = self.invoice_repo.find_client_invoice_by_id(invoice_id)
             if client_invoice is None:
-                return None, None, [], None
+                return None, None, [], None, []
             client = self.client_repo.find_by_id(client_invoice.client_id)
             party_name = client.name if client is not None else None
+            manually_edited_fields = list(
+                client_invoice.extraction_metadata.manually_edited_fields
+            ) if client_invoice.extraction_metadata is not None else []
             return (
                 client_invoice.invoice_number,
                 party_name,
                 [client_invoice.bl_reference],
                 client_invoice.total_amount.amount,
+                manually_edited_fields,
             )
 
         if document.document_type == DocumentType.PROVIDER_INVOICE:
             provider_invoice = self.invoice_repo.find_provider_invoice_by_id(invoice_id)
             if provider_invoice is None:
-                return None, None, [], None
+                return None, None, [], None, []
             provider = self.provider_repo.find_by_id(provider_invoice.provider_id)
             party_name = provider.name if provider is not None else None
+            manually_edited_fields = list(
+                provider_invoice.extraction_metadata.manually_edited_fields
+            ) if provider_invoice.extraction_metadata is not None else []
             return (
                 provider_invoice.invoice_number,
                 party_name,
                 list(provider_invoice.bl_references),
                 provider_invoice.total_amount.amount,
+                manually_edited_fields,
             )
 
-        return None, None, [], None
+        return None, None, [], None, []
 
     @staticmethod
     def _parse_date(value: str | None, field_name: str) -> date | None:

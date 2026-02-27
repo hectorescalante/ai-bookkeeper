@@ -1,6 +1,6 @@
 """DTOs for document use cases."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -20,6 +20,7 @@ class DocumentListItem:
     # Email info (if from email)
     email_sender: str | None
     email_subject: str | None
+    pdf_count_in_email: int | None
 
     # Error info (if error)
     error_message: str | None
@@ -30,6 +31,7 @@ class DocumentListItem:
     booking_references: list[str] | None = None
     total_amount: Decimal | None = None
     file_url: str | None = None
+    manually_edited_fields: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
