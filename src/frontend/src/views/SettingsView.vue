@@ -5,7 +5,10 @@
     </div>
 
     <div class="space-y-6">
-      <div class="bg-white rounded-lg shadow p-6">
+      <div
+        id="company-section"
+        class="bg-white rounded-lg shadow p-6"
+      >
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-gray-800">Company</h2>
           <span
@@ -76,7 +79,10 @@
           />
         </div>
       </div>
-      <div class="bg-white rounded-lg shadow p-6">
+      <div
+        id="agent-section"
+        class="bg-white rounded-lg shadow p-6"
+      >
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-gray-800">Agent profile</h2>
           <span
@@ -127,7 +133,10 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow p-6">
+      <div
+        id="ai-section"
+        class="bg-white rounded-lg shadow p-6"
+      >
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-gray-800">AI Extraction</h2>
           <span
@@ -207,7 +216,10 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow p-6">
+      <div
+        id="integrations-section"
+        class="bg-white rounded-lg shadow p-6"
+      >
         <h2 class="text-lg font-semibold text-gray-800 mb-4">Integrations</h2>
         <div class="space-y-3">
           <div class="flex items-center justify-between">
@@ -261,6 +273,109 @@
 
       <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-lg font-semibold text-gray-800 mb-4">Help</h2>
+        <div class="mb-5 rounded border border-blue-200 bg-blue-50 p-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-semibold text-blue-900">Getting started</h3>
+              <p class="text-xs text-blue-800 mt-1">
+                Complete these steps to set up the app quickly.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button
+                :label="onboardingDismissed ? 'Show guide' : 'Hide guide'"
+                severity="secondary"
+                text
+                size="small"
+                @click="
+                  onboardingDismissed
+                    ? resumeOnboardingGuide()
+                    : dismissOnboardingGuide()
+                "
+              />
+              <Button
+                label="Refresh status"
+                severity="secondary"
+                outlined
+                size="small"
+                :loading="isRefreshingOnboarding"
+                :disabled="isRefreshingOnboarding"
+                @click="refreshOnboardingStatus"
+              />
+            </div>
+          </div>
+
+          <div v-if="!onboardingDismissed">
+            <div class="mt-3">
+              <div class="flex items-center justify-between text-xs text-blue-900">
+                <span>Progress</span>
+                <span>{{ onboardingDoneCount }}/{{ onboardingSteps.length }} completed</span>
+              </div>
+              <div class="mt-1 h-2 w-full overflow-hidden rounded bg-blue-100">
+                <div
+                  class="h-full bg-blue-600 transition-all"
+                  :style="{ width: `${onboardingProgressPercent}%` }"
+                />
+              </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+              <div
+                v-for="step in onboardingSteps"
+                :key="step.id"
+                class="rounded border border-blue-100 bg-white px-3 py-2"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-start gap-2">
+                    <i
+                      class="mt-0.5 text-sm"
+                      :class="
+                        step.done
+                          ? 'pi pi-check-circle text-green-600'
+                          : 'pi pi-circle text-gray-400'
+                      "
+                    />
+                    <div>
+                      <p class="text-sm font-medium text-gray-800">{{ step.title }}</p>
+                      <p class="text-xs text-gray-600 mt-0.5">{{ step.description }}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span
+                      class="inline-flex rounded px-2 py-0.5 text-[11px] font-semibold"
+                      :class="
+                        step.done
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                      "
+                    >
+                      {{ step.done ? "Done" : "Pending" }}
+                    </span>
+                    <Button
+                      :label="step.actionLabel"
+                      size="small"
+                      text
+                      @click="handleOnboardingStepAction(step.id)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p
+              v-if="onboardingDoneCount === onboardingSteps.length"
+              class="mt-3 text-xs font-medium text-green-700"
+            >
+              Setup complete. You are ready to use the app.
+            </p>
+          </div>
+          <p
+            v-else
+            class="mt-3 text-xs text-blue-800"
+          >
+            Guide hidden. Click “Show guide” to continue onboarding.
+          </p>
+        </div>
         <p class="text-sm text-gray-600 mb-4">
           Export a diagnostics bundle to share with support when something fails.
         </p>
@@ -313,11 +428,12 @@
 
 <script setup lang="ts">
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import { useToast } from "primevue/usetoast";
+import { useRouter } from "vue-router";
 import {
   configureAgent,
   configureCompany,
@@ -328,10 +444,30 @@ import {
   getAgent,
   getCompany,
   getSettings,
+  listDocuments,
   testGeminiConnection,
 } from "../services/api";
 
 const toast = useToast();
+const router = useRouter();
+
+const ONBOARDING_STORAGE_KEY = "settings.onboarding.dismissed.v1";
+
+type OnboardingStepId =
+  | "company"
+  | "agent"
+  | "api-key"
+  | "outlook"
+  | "fetch-emails"
+  | "process-invoice";
+
+interface OnboardingStep {
+  id: OnboardingStepId;
+  title: string;
+  description: string;
+  done: boolean;
+  actionLabel: string;
+}
 const isLoadingCompany = ref(false);
 const isSavingCompany = ref(false);
 const isLoadingAgent = ref(false);
@@ -343,11 +479,15 @@ const isTestingApiKey = ref(false);
 const isConnecting = ref(false);
 const isDisconnecting = ref(false);
 const isExportingDiagnostics = ref(false);
+const isRefreshingOnboarding = ref(false);
 
 const companyConfigured = ref(false);
 const agentConfigured = ref(false);
 const hasApiKey = ref(false);
 const outlookConfigured = ref(false);
+const hasImportedDocuments = ref(false);
+const hasProcessedDocuments = ref(false);
+const onboardingDismissed = ref(false);
 const latestDiagnosticsBundleName = ref("");
 const latestDiagnosticsBundlePath = ref("");
 const companyForm = ref({
@@ -367,6 +507,161 @@ const settingsForm = ref({
   default_export_path: "",
   extraction_prompt: "",
 });
+
+const onboardingSteps = computed<OnboardingStep[]>(() => [
+  {
+    id: "company",
+    title: "Configure company",
+    description: "Set company name and NIF so invoice classification works.",
+    done: companyConfigured.value,
+    actionLabel: "Go to section",
+  },
+  {
+    id: "agent",
+    title: "Configure agent profile",
+    description: "Set your name, email, and phone.",
+    done: agentConfigured.value,
+    actionLabel: "Go to section",
+  },
+  {
+    id: "api-key",
+    title: "Set Gemini API key",
+    description: "Save an API key and test the connection.",
+    done: hasApiKey.value,
+    actionLabel: "Go to section",
+  },
+  {
+    id: "outlook",
+    title: "Connect Outlook",
+    description: "Authorize Outlook mailbox access to import invoices.",
+    done: outlookConfigured.value,
+    actionLabel: "Go to section",
+  },
+  {
+    id: "fetch-emails",
+    title: "Fetch emails",
+    description: "Import invoice PDFs from your inbox.",
+    done: hasImportedDocuments.value,
+    actionLabel: "Open Documents",
+  },
+  {
+    id: "process-invoice",
+    title: "Process first invoice",
+    description: "Process one document and review extracted data.",
+    done: hasProcessedDocuments.value,
+    actionLabel: "Open Documents",
+  },
+]);
+
+const onboardingDoneCount = computed(() =>
+  onboardingSteps.value.filter((step) => step.done).length
+);
+
+const onboardingProgressPercent = computed(() => {
+  if (onboardingSteps.value.length === 0) {
+    return 0;
+  }
+  return Math.round(
+    (onboardingDoneCount.value / onboardingSteps.value.length) * 100
+  );
+});
+
+const loadOnboardingPreference = (): void => {
+  try {
+    onboardingDismissed.value =
+      window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "1";
+  } catch {
+    onboardingDismissed.value = false;
+  }
+};
+
+const dismissOnboardingGuide = (): void => {
+  onboardingDismissed.value = true;
+  try {
+    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "1");
+  } catch {
+    // Ignore storage errors in restricted environments.
+  }
+};
+
+const resumeOnboardingGuide = (): void => {
+  onboardingDismissed.value = false;
+  try {
+    window.localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors in restricted environments.
+  }
+};
+
+const scrollToSection = (sectionId: string): void => {
+  const element = document.getElementById(sectionId);
+  if (element) {
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+};
+
+const loadOnboardingDocumentStats = async (): Promise<void> => {
+  try {
+    const [allDocuments, processedDocuments] = await Promise.all([
+      listDocuments({ limit: 1 }),
+      listDocuments({ status: "PROCESSED", limit: 1 }),
+    ]);
+    hasImportedDocuments.value = allDocuments.total > 0;
+    hasProcessedDocuments.value = processedDocuments.total > 0;
+  } catch {
+    hasImportedDocuments.value = false;
+    hasProcessedDocuments.value = false;
+  }
+};
+
+const handleOnboardingStepAction = (stepId: OnboardingStepId): void => {
+  if (stepId === "fetch-emails" || stepId === "process-invoice") {
+    void router.push("/");
+    return;
+  }
+
+  if (stepId === "company") {
+    scrollToSection("company-section");
+    return;
+  }
+
+  if (stepId === "agent") {
+    scrollToSection("agent-section");
+    return;
+  }
+
+  if (stepId === "api-key") {
+    scrollToSection("ai-section");
+    return;
+  }
+
+  scrollToSection("integrations-section");
+};
+
+const refreshOnboardingStatus = async (): Promise<void> => {
+  isRefreshingOnboarding.value = true;
+  try {
+    await Promise.all([
+      loadCompany(),
+      loadAgent(),
+      loadSettings(),
+      loadOnboardingDocumentStats(),
+    ]);
+    toast.add({
+      severity: "success",
+      summary: "Onboarding status refreshed",
+      life: 3000,
+    });
+  } catch {
+    toast.add({
+      severity: "error",
+      summary: "Failed to refresh onboarding status",
+      life: 3500,
+    });
+  } finally {
+    isRefreshingOnboarding.value = false;
+  }
+};
 
 const extractErrorMessage = (error: unknown): string => {
   if (
@@ -851,6 +1146,12 @@ const handleOutlookDisconnect = async (): Promise<void> => {
 };
 
 onMounted(async () => {
-  await Promise.all([loadCompany(), loadAgent(), loadSettings()]);
+  loadOnboardingPreference();
+  await Promise.all([
+    loadCompany(),
+    loadAgent(),
+    loadSettings(),
+    loadOnboardingDocumentStats(),
+  ]);
 });
 </script>
