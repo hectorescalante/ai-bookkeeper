@@ -91,6 +91,7 @@ def test_configure_settings(client: TestClient) -> None:
             "gemini_api_key": "test-key-123",
             "default_export_path": "/exports",
             "extraction_prompt": "Extract invoice data",
+            "onboarding_dismissed": True,
         },
     )
 
@@ -98,7 +99,9 @@ def test_configure_settings(client: TestClient) -> None:
     data = response.json()
     assert data["has_api_key"] is True
     assert data["extraction_prompt"] == "Extract invoice data"
+    assert data["onboarding_dismissed"] is True
     assert data["default_export_path"] == "/exports"
+    assert data["onboarding_dismissed"] is True
 
 
 def test_get_settings(client: TestClient) -> None:
@@ -110,6 +113,7 @@ def test_get_settings(client: TestClient) -> None:
             "gemini_api_key": "test-key-123",
             "default_export_path": "/exports",
             "extraction_prompt": "Extract invoice data",
+            "onboarding_dismissed": True,
         },
     )
 

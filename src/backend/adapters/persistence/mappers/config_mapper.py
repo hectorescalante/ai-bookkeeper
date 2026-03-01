@@ -61,6 +61,7 @@ def settings_to_model(settings: Settings) -> SettingsModel:
         outlook_refresh_token=settings.outlook_refresh_token,
         default_export_path=settings.default_export_path,
         extraction_prompt=settings.extraction_prompt,
+        onboarding_dismissed=settings.onboarding_dismissed,
     )
 
 
@@ -73,4 +74,5 @@ def model_to_settings(model: SettingsModel) -> Settings:
         outlook_refresh_token=model.outlook_refresh_token,
         default_export_path=model.default_export_path,
         extraction_prompt=model.extraction_prompt,
+        onboarding_dismissed=model.onboarding_dismissed,
     )

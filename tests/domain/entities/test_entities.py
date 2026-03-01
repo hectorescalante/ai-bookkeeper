@@ -446,6 +446,7 @@ class TestSettings:
         settings = Settings.create()
         assert settings.has_api_key is False
         assert settings.outlook_configured is False
+        assert settings.onboarding_dismissed is False
 
     def test_settings_set_api_key(self) -> None:
         """Test setting API key."""
@@ -483,3 +484,9 @@ class TestSettings:
 
         settings.reset_extraction_prompt()
         assert settings.extraction_prompt == original_prompt
+
+    def test_settings_onboarding_dismissal(self) -> None:
+        """Test onboarding dismissal state update."""
+        settings = Settings.create()
+        settings.set_onboarding_dismissed(True)
+        assert settings.onboarding_dismissed is True

@@ -139,6 +139,7 @@ def configure_settings(
         gemini_api_key=request.gemini_api_key,
         default_export_path=request.default_export_path,
         extraction_prompt=request.extraction_prompt,
+        onboarding_dismissed=request.onboarding_dismissed,
     )
 
     # Execute use case
@@ -151,6 +152,7 @@ def configure_settings(
         outlook_configured=result.outlook_configured,
         default_export_path=result.default_export_path,
         extraction_prompt=result.extraction_prompt,
+        onboarding_dismissed=result.onboarding_dismissed,
     )
 
 
@@ -222,4 +224,5 @@ def get_settings(
         outlook_configured=result.outlook_configured,
         default_export_path=result.default_export_path,
         extraction_prompt=result.extraction_prompt,
+        onboarding_dismissed=result.onboarding_dismissed,
     )

@@ -100,12 +100,14 @@ export interface SettingsResponse {
   outlook_configured: boolean;
   default_export_path: string;
   extraction_prompt: string;
+  onboarding_dismissed: boolean;
 }
 
 export interface ConfigureSettingsRequest {
   gemini_api_key?: string | null;
   default_export_path?: string | null;
   extraction_prompt?: string | null;
+  onboarding_dismissed?: boolean | null;
 }
 
 export interface TestGeminiConnectionRequest {

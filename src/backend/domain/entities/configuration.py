@@ -124,6 +124,7 @@ class Settings:
     outlook_refresh_token: str = ""  # Encrypted, stored in keychain ideally
     default_export_path: str = ""
     extraction_prompt: str = field(default=DEFAULT_EXTRACTION_PROMPT)
+    onboarding_dismissed: bool = False
 
     @classmethod
     def create(cls) -> "Settings":
@@ -160,3 +161,7 @@ class Settings:
     def reset_extraction_prompt(self) -> None:
         """Reset extraction prompt to default."""
         self.extraction_prompt = DEFAULT_EXTRACTION_PROMPT
+
+    def set_onboarding_dismissed(self, dismissed: bool) -> None:
+        """Set onboarding guide dismissed state."""
+        self.onboarding_dismissed = dismissed

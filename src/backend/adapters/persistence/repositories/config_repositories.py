@@ -100,6 +100,7 @@ class SqlAlchemySettingsRepository(SettingsRepository):
             existing.outlook_refresh_token = stored_token_value
             existing.default_export_path = settings.default_export_path
             existing.extraction_prompt = settings.extraction_prompt
+            existing.onboarding_dismissed = settings.onboarding_dismissed
         else:
             model = settings_to_model(settings)
             model.outlook_refresh_token = stored_token_value

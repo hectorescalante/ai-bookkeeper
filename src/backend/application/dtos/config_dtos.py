@@ -54,6 +54,7 @@ class ConfigureSettingsRequest:
     gemini_api_key: str | None = None
     default_export_path: str | None = None
     extraction_prompt: str | None = None
+    onboarding_dismissed: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,7 @@ class SettingsResponse:
     outlook_configured: bool
     default_export_path: str
     extraction_prompt: str
+    onboarding_dismissed: bool
 
 
 @dataclass(frozen=True)

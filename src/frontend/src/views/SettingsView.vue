@@ -287,11 +287,9 @@
                 severity="secondary"
                 text
                 size="small"
-                @click="
-                  onboardingDismissed
-                    ? resumeOnboardingGuide()
-                    : dismissOnboardingGuide()
-                "
+                :loading="isUpdatingOnboarding"
+                :disabled="isUpdatingOnboarding"
+                @click="onboardingDismissed ? resumeOnboardingGuide() : dismissOnboardingGuide()"
               />
               <Button
                 label="Refresh status"
@@ -451,8 +449,6 @@ import {
 const toast = useToast();
 const router = useRouter();
 
-const ONBOARDING_STORAGE_KEY = "settings.onboarding.dismissed.v1";
-
 type OnboardingStepId =
   | "company"
   | "agent"
@@ -480,6 +476,7 @@ const isConnecting = ref(false);
 const isDisconnecting = ref(false);
 const isExportingDiagnostics = ref(false);
 const isRefreshingOnboarding = ref(false);
+const isUpdatingOnboarding = ref(false);
 
 const companyConfigured = ref(false);
 const agentConfigured = ref(false);
@@ -566,31 +563,29 @@ const onboardingProgressPercent = computed(() => {
   );
 });
 
-const loadOnboardingPreference = (): void => {
+const setOnboardingDismissed = async (dismissed: boolean): Promise<void> => {
+  isUpdatingOnboarding.value = true;
   try {
-    onboardingDismissed.value =
-      window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "1";
-  } catch {
-    onboardingDismissed.value = false;
+    await configureSettings({ onboarding_dismissed: dismissed });
+    onboardingDismissed.value = dismissed;
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to update onboarding guide",
+      detail: extractErrorMessage(error),
+      life: 4500,
+    });
+  } finally {
+    isUpdatingOnboarding.value = false;
   }
 };
 
-const dismissOnboardingGuide = (): void => {
-  onboardingDismissed.value = true;
-  try {
-    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "1");
-  } catch {
-    // Ignore storage errors in restricted environments.
-  }
+const dismissOnboardingGuide = async (): Promise<void> => {
+  await setOnboardingDismissed(true);
 };
 
-const resumeOnboardingGuide = (): void => {
-  onboardingDismissed.value = false;
-  try {
-    window.localStorage.removeItem(ONBOARDING_STORAGE_KEY);
-  } catch {
-    // Ignore storage errors in restricted environments.
-  }
+const resumeOnboardingGuide = async (): Promise<void> => {
+  await setOnboardingDismissed(false);
 };
 
 const scrollToSection = (sectionId: string): void => {
@@ -765,10 +760,12 @@ const loadSettings = async (): Promise<void> => {
       default_export_path: settings.default_export_path,
       extraction_prompt: settings.extraction_prompt,
     };
+    onboardingDismissed.value = settings.onboarding_dismissed;
   } catch (error) {
     if (isNotConfiguredError(error)) {
       hasApiKey.value = false;
       outlookConfigured.value = false;
+      onboardingDismissed.value = false;
       settingsForm.value = {
         gemini_api_key: "",
         default_export_path: "",
@@ -949,6 +946,7 @@ const saveSettings = async (): Promise<void> => {
       default_export_path: response.default_export_path,
       extraction_prompt: response.extraction_prompt,
     };
+    onboardingDismissed.value = response.onboarding_dismissed;
     toast.add({
       severity: "success",
       summary: "Settings saved",
@@ -972,6 +970,7 @@ const clearApiKey = async (): Promise<void> => {
   try {
     const response = await configureSettings({ gemini_api_key: "" });
     hasApiKey.value = response.has_api_key;
+    onboardingDismissed.value = response.onboarding_dismissed;
     settingsForm.value.gemini_api_key = "";
     toast.add({
       severity: "success",
@@ -1146,7 +1145,6 @@ const handleOutlookDisconnect = async (): Promise<void> => {
 };
 
 onMounted(async () => {
-  loadOnboardingPreference();
   await Promise.all([
     loadCompany(),
     loadAgent(),

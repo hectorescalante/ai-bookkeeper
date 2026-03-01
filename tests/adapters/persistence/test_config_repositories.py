@@ -117,6 +117,7 @@ class TestSettingsRepository:
         settings.set_api_key("test-gemini-key")
         settings.set_outlook_configured(True, "refresh_token_abc")
         settings.extraction_prompt = "Custom prompt template"
+        settings.set_onboarding_dismissed(True)
 
         repo.save(settings)
 
@@ -127,6 +128,7 @@ class TestSettingsRepository:
         assert retrieved.outlook_configured is True
         assert retrieved.outlook_refresh_token == "refresh_token_abc"
         assert retrieved.extraction_prompt == "Custom prompt template"
+        assert retrieved.onboarding_dismissed is True
 
     def test_update_settings(self, db_session):
         """Test updating settings."""
@@ -140,12 +142,14 @@ class TestSettingsRepository:
         settings2.id = settings1.id
         settings2.set_api_key("new-key")
         settings2.default_export_path = "/path/to/exports"
+        settings2.set_onboarding_dismissed(True)
         repo.save(settings2)
 
         retrieved = repo.get()
         assert retrieved is not None
         assert retrieved.gemini_api_key == "new-key"
         assert retrieved.default_export_path == "/path/to/exports"
+        assert retrieved.onboarding_dismissed is True
 
     def test_get_empty_returns_none(self, db_session):
         """Test that get returns None when no settings exist."""
@@ -164,6 +168,7 @@ class TestSettingsRepository:
             outlook_refresh_token="legacy-refresh-token",
             default_export_path="",
             extraction_prompt="",
+            onboarding_dismissed=False,
         )
         db_session.add(legacy_model)
         db_session.commit()
@@ -207,6 +212,7 @@ class TestSettingsRepository:
             outlook_refresh_token="legacy-refresh-token",
             default_export_path="",
             extraction_prompt="",
+            onboarding_dismissed=False,
         )
         db_session.add(legacy_model)
         db_session.commit()

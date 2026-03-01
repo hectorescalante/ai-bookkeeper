@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import DateTime, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.adapters.persistence.database import Base
@@ -46,6 +46,7 @@ class SettingsModel(Base):
     outlook_refresh_token: Mapped[str] = mapped_column(Text, nullable=False, default="")
     default_export_path: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     extraction_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    onboarding_dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class OutlookOAuthStateModel(Base):

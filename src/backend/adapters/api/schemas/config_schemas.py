@@ -50,6 +50,10 @@ class SettingsRequest(BaseModel):
     gemini_api_key: str | None = Field(None, description="Google Gemini API key for AI extraction")
     default_export_path: str | None = Field(None, description="Default export path for reports")
     extraction_prompt: str | None = Field(None, description="AI extraction prompt")
+    onboarding_dismissed: bool | None = Field(
+        None,
+        description="Whether the onboarding guide is dismissed in Settings Help",
+    )
 
 
 class SettingsResponse(BaseModel):
@@ -60,6 +64,7 @@ class SettingsResponse(BaseModel):
     outlook_configured: bool
     default_export_path: str
     extraction_prompt: str
+    onboarding_dismissed: bool
 
 
 class TestGeminiConnectionRequest(BaseModel):

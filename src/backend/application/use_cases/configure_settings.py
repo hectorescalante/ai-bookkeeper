@@ -28,6 +28,8 @@ class ConfigureSettingsUseCase:
 
         if request.extraction_prompt is not None:
             settings.update_extraction_prompt(request.extraction_prompt)
+        if request.onboarding_dismissed is not None:
+            settings.set_onboarding_dismissed(request.onboarding_dismissed)
 
         self.settings_repo.save(settings)
 
@@ -37,6 +39,7 @@ class ConfigureSettingsUseCase:
             outlook_configured=settings.outlook_configured,
             default_export_path=settings.default_export_path,
             extraction_prompt=settings.extraction_prompt,
+            onboarding_dismissed=settings.onboarding_dismissed,
         )
 
     def get_settings(self) -> SettingsResponse | None:
@@ -52,4 +55,5 @@ class ConfigureSettingsUseCase:
             outlook_configured=settings.outlook_configured,
             default_export_path=settings.default_export_path,
             extraction_prompt=settings.extraction_prompt,
+            onboarding_dismissed=settings.onboarding_dismissed,
         )
