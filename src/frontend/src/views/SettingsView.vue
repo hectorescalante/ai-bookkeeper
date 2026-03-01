@@ -5,6 +5,119 @@
     </div>
 
     <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-1">Getting started</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Follow this checklist first. Use each action to jump directly to the section you need.
+        </p>
+        <div class="mb-5 rounded border border-blue-200 bg-blue-50 p-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-semibold text-blue-900">Getting started</h3>
+              <p class="text-xs text-blue-800 mt-1">
+                Complete these steps to set up the app quickly.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button
+                :label="onboardingDismissed ? 'Show guide' : 'Hide guide'"
+                severity="secondary"
+                text
+                size="small"
+                :loading="isUpdatingOnboarding"
+                :disabled="isUpdatingOnboarding"
+                @click="onboardingDismissed ? resumeOnboardingGuide() : dismissOnboardingGuide()"
+              />
+              <Button
+                label="Refresh status"
+                severity="secondary"
+                outlined
+                size="small"
+                :loading="isRefreshingOnboarding"
+                :disabled="isRefreshingOnboarding"
+                @click="refreshOnboardingStatus"
+              />
+            </div>
+          </div>
+
+          <div v-if="!onboardingDismissed">
+            <div class="mt-3">
+              <div class="flex items-center justify-between text-xs text-blue-900">
+                <span>Progress</span>
+                <span>{{ onboardingDoneCount }}/{{ onboardingSteps.length }} completed</span>
+              </div>
+              <div class="mt-1 h-2 w-full overflow-hidden rounded bg-blue-100">
+                <div
+                  class="h-full bg-blue-600 transition-all"
+                  :style="{ width: `${onboardingProgressPercent}%` }"
+                />
+              </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+              <div
+                v-for="step in onboardingSteps"
+                :key="step.id"
+                class="rounded border border-blue-100 bg-white px-3 py-2"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-start gap-2">
+                    <i
+                      class="mt-0.5 text-sm"
+                      :class="
+                        step.done
+                          ? 'pi pi-check-circle text-green-600'
+                          : 'pi pi-circle text-gray-400'
+                      "
+                    />
+                    <div>
+                      <p class="text-sm font-medium text-gray-800">{{ step.title }}</p>
+                      <p class="text-xs text-gray-600 mt-0.5">{{ step.description }}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span
+                      class="inline-flex rounded px-2 py-0.5 text-[11px] font-semibold"
+                      :class="
+                        step.done
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                      "
+                    >
+                      {{ step.done ? "Done" : "Pending" }}
+                    </span>
+                    <Button
+                      :label="step.actionLabel"
+                      size="small"
+                      text
+                      @click="handleOnboardingStepAction(step.id)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p
+              v-if="onboardingDoneCount === onboardingSteps.length"
+              class="mt-3 text-xs font-medium text-green-700"
+            >
+              Setup complete. You are ready to use the app.
+            </p>
+          </div>
+          <p
+            v-else
+            class="mt-3 text-xs text-blue-800"
+          >
+            Guide hidden. Click “Show guide” to continue onboarding.
+          </p>
+        </div>
+      </div>
+      <div class="px-1">
+        <h2 class="text-lg font-semibold text-gray-800">Setup</h2>
+        <p class="text-sm text-gray-600">
+          Configure these sections in order to complete initial setup.
+        </p>
+      </div>
       <div
         id="company-section"
         class="bg-white rounded-lg shadow p-6"
@@ -270,110 +383,8 @@
           </div>
         </div>
       </div>
-
       <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Help</h2>
-        <div class="mb-5 rounded border border-blue-200 bg-blue-50 p-4">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-sm font-semibold text-blue-900">Getting started</h3>
-              <p class="text-xs text-blue-800 mt-1">
-                Complete these steps to set up the app quickly.
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <Button
-                :label="onboardingDismissed ? 'Show guide' : 'Hide guide'"
-                severity="secondary"
-                text
-                size="small"
-                :loading="isUpdatingOnboarding"
-                :disabled="isUpdatingOnboarding"
-                @click="onboardingDismissed ? resumeOnboardingGuide() : dismissOnboardingGuide()"
-              />
-              <Button
-                label="Refresh status"
-                severity="secondary"
-                outlined
-                size="small"
-                :loading="isRefreshingOnboarding"
-                :disabled="isRefreshingOnboarding"
-                @click="refreshOnboardingStatus"
-              />
-            </div>
-          </div>
-
-          <div v-if="!onboardingDismissed">
-            <div class="mt-3">
-              <div class="flex items-center justify-between text-xs text-blue-900">
-                <span>Progress</span>
-                <span>{{ onboardingDoneCount }}/{{ onboardingSteps.length }} completed</span>
-              </div>
-              <div class="mt-1 h-2 w-full overflow-hidden rounded bg-blue-100">
-                <div
-                  class="h-full bg-blue-600 transition-all"
-                  :style="{ width: `${onboardingProgressPercent}%` }"
-                />
-              </div>
-            </div>
-
-            <div class="mt-4 space-y-2">
-              <div
-                v-for="step in onboardingSteps"
-                :key="step.id"
-                class="rounded border border-blue-100 bg-white px-3 py-2"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="flex items-start gap-2">
-                    <i
-                      class="mt-0.5 text-sm"
-                      :class="
-                        step.done
-                          ? 'pi pi-check-circle text-green-600'
-                          : 'pi pi-circle text-gray-400'
-                      "
-                    />
-                    <div>
-                      <p class="text-sm font-medium text-gray-800">{{ step.title }}</p>
-                      <p class="text-xs text-gray-600 mt-0.5">{{ step.description }}</p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2 shrink-0">
-                    <span
-                      class="inline-flex rounded px-2 py-0.5 text-[11px] font-semibold"
-                      :class="
-                        step.done
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-600'
-                      "
-                    >
-                      {{ step.done ? "Done" : "Pending" }}
-                    </span>
-                    <Button
-                      :label="step.actionLabel"
-                      size="small"
-                      text
-                      @click="handleOnboardingStepAction(step.id)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p
-              v-if="onboardingDoneCount === onboardingSteps.length"
-              class="mt-3 text-xs font-medium text-green-700"
-            >
-              Setup complete. You are ready to use the app.
-            </p>
-          </div>
-          <p
-            v-else
-            class="mt-3 text-xs text-blue-800"
-          >
-            Guide hidden. Click “Show guide” to continue onboarding.
-          </p>
-        </div>
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Support & diagnostics</h2>
         <p class="text-sm text-gray-600 mb-4">
           Export a diagnostics bundle to share with support when something fails.
         </p>
@@ -420,6 +431,7 @@
           </p>
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -563,6 +575,17 @@ const onboardingProgressPercent = computed(() => {
   );
 });
 
+const isNonEmpty = (value: string): boolean => value.trim().length > 0;
+
+const isCompanySectionConfigured = (name: string, nif: string): boolean =>
+  isNonEmpty(name) && isNonEmpty(nif);
+
+const isAgentSectionConfigured = (
+  name: string,
+  email: string,
+  phone: string
+): boolean => isNonEmpty(name) && isNonEmpty(email) && isNonEmpty(phone);
+
 const setOnboardingDismissed = async (dismissed: boolean): Promise<void> => {
   isUpdatingOnboarding.value = true;
   try {
@@ -687,7 +710,7 @@ const loadCompany = async (): Promise<void> => {
   isLoadingCompany.value = true;
   try {
     const company = await getCompany();
-    companyConfigured.value = company.is_configured;
+    companyConfigured.value = isCompanySectionConfigured(company.name, company.nif);
     companyForm.value = {
       name: company.name,
       nif: company.nif,
@@ -722,7 +745,11 @@ const loadAgent = async (): Promise<void> => {
   isLoadingAgent.value = true;
   try {
     const agent = await getAgent();
-    agentConfigured.value = true;
+    agentConfigured.value = isAgentSectionConfigured(
+      agent.name,
+      agent.email,
+      agent.phone
+    );
     agentForm.value = {
       name: agent.name,
       email: agent.email,
@@ -822,7 +849,7 @@ const saveCompany = async (): Promise<void> => {
       contact_info: companyForm.value.contact_info.trim(),
       commission_rate: commissionRate.toFixed(2),
     });
-    companyConfigured.value = response.is_configured;
+    companyConfigured.value = isCompanySectionConfigured(response.name, response.nif);
     companyForm.value = {
       name: response.name,
       nif: response.nif,
@@ -867,7 +894,11 @@ const saveAgent = async (): Promise<void> => {
   isSavingAgent.value = true;
   try {
     const response = await configureAgent({ name, email, phone });
-    agentConfigured.value = true;
+    agentConfigured.value = isAgentSectionConfigured(
+      response.name,
+      response.email,
+      response.phone
+    );
     agentForm.value = {
       name: response.name,
       email: response.email,
