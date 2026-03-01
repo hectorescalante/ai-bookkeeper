@@ -6,6 +6,9 @@ BACKEND_HOST := 127.0.0.1
 BACKEND_PORT := 8000
 BACKEND_CMD := uv run uvicorn backend.main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT)
 MIGRATE_CMD := uv run alembic upgrade head
+LOG_DIR := logs
+DEV_LOG_PREFIX := dev
+LOG_RETENTION_DAYS := 14
 
 .PHONY: help setup migrate backend frontend tauri dev dev-web test lint format typecheck build validate
 
@@ -29,7 +32,18 @@ tauri: ## Run full Tauri desktop app
 	pnpm --dir $(FRONTEND_DIR) tauri dev
 
 dev: ## Run backend + Tauri app together
-	@bash -c '$(MIGRATE_CMD); $(BACKEND_CMD) & BACK_PID=$$!; trap "kill $$BACK_PID" EXIT INT TERM; pnpm --dir $(FRONTEND_DIR) tauri dev'
+	@bash -c '\
+		mkdir -p $(LOG_DIR); \
+		LOG_FILE="$(LOG_DIR)/$(DEV_LOG_PREFIX)-$$(date +%F).log"; \
+		ln -sfn "$$(basename "$$LOG_FILE")" "$(LOG_DIR)/$(DEV_LOG_PREFIX).log"; \
+		find "$(LOG_DIR)" -type f -name "$(DEV_LOG_PREFIX)-*.log" -mtime +$(LOG_RETENTION_DAYS) -delete; \
+		echo "[make dev] Logging to $$LOG_FILE"; \
+		exec > >(tee -a "$$LOG_FILE") 2>&1; \
+		$(MIGRATE_CMD); \
+		$(BACKEND_CMD) & BACK_PID=$$!; \
+		trap "kill $$BACK_PID" EXIT INT TERM; \
+		pnpm --dir $(FRONTEND_DIR) tauri dev \
+	'
 
 dev-web: ## Run backend + frontend web dev server together
 	@bash -c '$(MIGRATE_CMD); $(BACKEND_CMD) & BACK_PID=$$!; trap "kill $$BACK_PID" EXIT INT TERM; pnpm --dir $(FRONTEND_DIR) dev'
