@@ -6,6 +6,7 @@ from backend.application.use_cases.configure_settings import ConfigureSettingsUs
 from backend.application.use_cases.confirm_invoice import ConfirmInvoiceUseCase
 from backend.application.use_cases.edit_booking import EditBookingUseCase
 from backend.application.use_cases.export_booking import ExportBookingUseCase
+from backend.application.use_cases.export_diagnostics import ExportDiagnosticsUseCase
 from backend.application.use_cases.fetch_emails import FetchEmailsUseCase
 from backend.application.use_cases.generate_commission_report import (
     GenerateCommissionReportUseCase,
@@ -24,6 +25,7 @@ __all__ = [
     "ConfigureSettingsUseCase",
     "ConfirmInvoiceUseCase",
     "EditBookingUseCase",
+    "ExportDiagnosticsUseCase",
     "ExportBookingUseCase",
     "FetchEmailsUseCase",
     "GenerateCommissionReportUseCase",

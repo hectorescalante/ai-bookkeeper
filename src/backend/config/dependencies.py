@@ -26,6 +26,7 @@ from backend.application.use_cases import (
     ConfirmInvoiceUseCase,
     EditBookingUseCase,
     ExportBookingUseCase,
+    ExportDiagnosticsUseCase,
     FetchEmailsUseCase,
     GenerateCommissionReportUseCase,
     GenerateExcelReportUseCase,
@@ -115,6 +116,25 @@ def get_configure_settings_use_case(
 ) -> ConfigureSettingsUseCase:
     """Get configure settings use case instance."""
     return ConfigureSettingsUseCase(settings_repo)
+
+
+def get_export_diagnostics_use_case(
+    settings_repo: Annotated[SettingsRepository, Depends(get_settings_repository)],
+    booking_repo: Annotated[BookingRepository, Depends(get_booking_repository)],
+    document_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    invoice_repo: Annotated[InvoiceRepository, Depends(get_invoice_repository)],
+    client_repo: Annotated[ClientRepository, Depends(get_client_repository)],
+    provider_repo: Annotated[ProviderRepository, Depends(get_provider_repository)],
+) -> ExportDiagnosticsUseCase:
+    """Get diagnostics export use case instance."""
+    return ExportDiagnosticsUseCase(
+        settings_repo=settings_repo,
+        booking_repo=booking_repo,
+        document_repo=document_repo,
+        invoice_repo=invoice_repo,
+        client_repo=client_repo,
+        provider_repo=provider_repo,
+    )
 
 
 def get_list_documents_use_case(

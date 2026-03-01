@@ -52,7 +52,12 @@ class Settings(BaseSettings):
     @property
     def logs_path(self) -> Path:
         """Get the logs directory path."""
-        return self.storage_path / "logs"
+        return Path.home() / "Library" / "Logs" / "AIBookkeeper"
+
+    @property
+    def diagnostics_path(self) -> Path:
+        """Get diagnostics export directory path."""
+        return Path.home() / "Library" / "Application Support" / "AIBookkeeper" / "diagnostics"
 
 
 @lru_cache

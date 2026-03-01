@@ -12,6 +12,10 @@ from backend.adapters.api.routes import (
     outlook,
     reports,
 )
+from backend.config import get_settings
+from backend.config.logging import setup_logging
+
+setup_logging(get_settings())
 
 app = FastAPI(
     title="AI Bookkeeper",

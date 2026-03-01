@@ -9,6 +9,7 @@ from backend.adapters.api.schemas import (
     AgentResponse,
     CompanyRequest,
     CompanyResponse,
+    DiagnosticsExportResponse,
     SettingsRequest,
     SettingsResponse,
     TestGeminiConnectionRequest,
@@ -23,12 +24,14 @@ from backend.application.use_cases import (
     ConfigureAgentUseCase,
     ConfigureCompanyUseCase,
     ConfigureSettingsUseCase,
+    ExportDiagnosticsUseCase,
 )
 from backend.config.dependencies import (
     get_ai_extractor,
     get_configure_agent_use_case,
     get_configure_company_use_case,
     get_configure_settings_use_case,
+    get_export_diagnostics_use_case,
     get_settings_repository,
 )
 from backend.ports.output.ai_extractor import AIExtractor
@@ -148,6 +151,27 @@ def configure_settings(
         outlook_configured=result.outlook_configured,
         default_export_path=result.default_export_path,
         extraction_prompt=result.extraction_prompt,
+    )
+
+
+@router.post(
+    "/diagnostics/export",
+    response_model=DiagnosticsExportResponse,
+    status_code=200,
+)
+def export_diagnostics(
+    use_case: Annotated[
+        ExportDiagnosticsUseCase,
+        Depends(get_export_diagnostics_use_case),
+    ],
+) -> DiagnosticsExportResponse:
+    """Generate a diagnostics bundle for support sharing."""
+    result = use_case.execute()
+    return DiagnosticsExportResponse(
+        bundle_name=result.bundle_name,
+        bundle_path=result.bundle_path,
+        created_at=result.created_at,
+        warnings=result.warnings,
     )
 
 

@@ -65,3 +65,13 @@ class SettingsResponse:
     outlook_configured: bool
     default_export_path: str
     extraction_prompt: str
+
+
+@dataclass(frozen=True)
+class DiagnosticsExportResponse:
+    """Response for diagnostics bundle export."""
+
+    bundle_name: str
+    bundle_path: str
+    created_at: str
+    warnings: list[str]

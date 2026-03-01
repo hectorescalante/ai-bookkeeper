@@ -4,7 +4,8 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from backend.config.dependencies import get_ai_extractor
+from backend.application.dtos import DiagnosticsExportResponse as DiagnosticsExportDto
+from backend.config.dependencies import get_ai_extractor, get_export_diagnostics_use_case
 from backend.main import app
 
 
@@ -14,6 +15,16 @@ class _StubAIExtractor:
 
     def test_connection(self, api_key: str) -> bool:
         return api_key in self.valid_keys
+
+
+class _StubDiagnosticsUseCase:
+    def execute(self) -> DiagnosticsExportDto:
+        return DiagnosticsExportDto(
+            bundle_name="diagnostics-20260301-123000.zip",
+            bundle_path="/tmp/diagnostics-20260301-123000.zip",
+            created_at="2026-03-01T12:30:00Z",
+            warnings=["No log files were found; exported bundle contains metadata only."],
+        )
 
 
 def test_configure_company(client: TestClient) -> None:
@@ -268,3 +279,20 @@ def test_invalid_commission_rate(client: TestClient) -> None:
     )
 
     assert response.status_code == 422  # Validation error
+
+
+def test_export_diagnostics_endpoint(client: TestClient) -> None:
+    app.dependency_overrides[get_export_diagnostics_use_case] = (
+        lambda: _StubDiagnosticsUseCase()
+    )
+    try:
+        response = client.post("/api/config/diagnostics/export")
+    finally:
+        app.dependency_overrides.pop(get_export_diagnostics_use_case, None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["bundle_name"] == "diagnostics-20260301-123000.zip"
+    assert payload["bundle_path"] == "/tmp/diagnostics-20260301-123000.zip"
+    assert payload["created_at"] == "2026-03-01T12:30:00Z"
+    assert len(payload["warnings"]) == 1

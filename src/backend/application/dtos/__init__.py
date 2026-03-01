@@ -13,6 +13,7 @@ from backend.application.dtos.config_dtos import (
     ConfigureAgentRequest,
     ConfigureCompanyRequest,
     ConfigureSettingsRequest,
+    DiagnosticsExportResponse,
     SettingsResponse,
 )
 from backend.application.dtos.document_dtos import (
@@ -47,6 +48,7 @@ __all__ = [
     "ConfigureAgentRequest",
     "ConfigureCompanyRequest",
     "ConfigureSettingsRequest",
+    "DiagnosticsExportResponse",
     "DocumentListItem",
     "FetchEmailsRequest",
     "FetchEmailsResponse",

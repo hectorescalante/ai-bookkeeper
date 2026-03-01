@@ -76,3 +76,12 @@ class TestGeminiConnectionResponse(BaseModel):
 
     valid: bool
     message: str
+
+
+class DiagnosticsExportResponse(BaseModel):
+    """Response for diagnostics export action."""
+
+    bundle_name: str
+    bundle_path: str
+    created_at: str
+    warnings: list[str]
