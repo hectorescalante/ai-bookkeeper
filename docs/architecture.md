@@ -178,7 +178,7 @@ Local development with hot reload and debugging.
 | **AI API** | Real Gemini 3 API (dev key) or mock responses |
 | **Outlook** | Mock email client (no real OAuth) |
 | **File Storage** | Local temp folder: `data/pdfs/` |
-| **Logging** | DEBUG level, console output |
+| **Logging** | DEBUG level, structured JSON (console + file output) |
 
 ```bash
 # Start development
@@ -196,7 +196,7 @@ Pre-release testing with real integrations. Distributed to beta testers.
 | **AI API** | Real Gemini 3 API (staging key) |
 | **Outlook** | Real OAuth (test account) |
 | **File Storage** | iCloud Drive staging folder |
-| **Logging** | INFO level, file output |
+| **Logging** | INFO level, structured JSON file output |
 | **Updates** | Manual distribution (DMG/ZIP) |
 
 Used for:
@@ -214,7 +214,7 @@ Released application for end users.
 | **AI API** | User's own Gemini API key |
 | **Outlook** | Real OAuth (user's account) |
 | **File Storage** | iCloud Drive: `~/Library/Mobile Documents/com~apple~CloudDocs/AIBookkeeper/` |
-| **Logging** | INFO level (DEBUG disabled), file output |
+| **Logging** | INFO level (DEBUG disabled), structured JSON file output |
 | **Updates** | Auto-update via Tauri updater (future) |
 
 ### Environment Variables
@@ -301,6 +301,12 @@ Robust logging for troubleshooting issues on user machines.
 - Email subjects or senders
 - Any personally identifiable information
 
+### Redaction and Sanitization
+- Logging applies centralized redaction before writing records.
+- Structured context is sanitized recursively (including nested objects/lists).
+- Sensitive keys/patterns are redacted (API keys, tokens, auth headers, NIF, email, phone, address, sender/subject, extraction payloads, financial fields).
+- Free-text log messages are sanitized using sensitive-value pattern matching.
+
 ### Log Rotation
 - One file per day (`app-YYYY-MM-DD.log`)
 - Retention: 30 days
@@ -311,6 +317,9 @@ User can generate a diagnostic bundle for developer support:
 
 **Settings → Help → Export Diagnostics**
 
+Export destination:
+- `~/Library/Application Support/AIBookkeeper/diagnostics/`
+
 Bundle contents (`diagnostics-YYYYMMDD-HHMMSS.zip`):
 - `logs/` — Last 5 log files
 - `app-info.json` — App version, OS version, Python version
@@ -318,10 +327,15 @@ Bundle contents (`diagnostics-YYYYMMDD-HHMMSS.zip`):
 - `db-stats.json` — Record counts (bookings, invoices, documents)
 - `error-report.txt` — Last 50 errors with stack traces
 
+Export constraints:
+- For large logs, only the last 2 MB per selected log file is included.
+- If truncation occurs, bundle includes `logs/TRUNCATION_NOTES.txt`.
+- Export can include logs from legacy `storage_path/logs` as fallback when present.
+
 **NOT included:**
 - Database file
 - PDF documents
-- API keys
+- API keys or tokens
 - Any business data
 
 ### Sharing with Developer

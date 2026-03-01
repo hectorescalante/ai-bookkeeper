@@ -300,10 +300,17 @@ Configuration screens.
 │  └─────────────────────────────────────────────────────────┘ │
 │                                                             │
 │  ┌─ Help ─────────────────────────────────────────────────┐ │
-│  │  [Export Diagnostics]   [About]   Version 1.0.0        │ │
+│  │  [Export Diagnostics] [Open file location] [Share by email] │ │
+│  │  Latest bundle: /.../diagnostics-YYYYMMDD-HHMMSS.zip   │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Help Section (Diagnostics):**
+- **Export Diagnostics** creates a zip bundle for support.
+- **Open file location** reveals the generated zip in Finder.
+- **Share by email** opens a prefilled email draft.
+- A note reminds users that the zip must be attached manually.
 
 ---
 
@@ -375,6 +382,23 @@ Reports
         ├── File saved to iCloud
         │
         └── Toast: "Report saved to ~/iCloud/AIBookkeeper/reports/"
+```
+
+### Flow 4: Export Diagnostics for Support
+
+```
+Settings → Help
+    │
+    ├── Click "Export Diagnostics"
+    │   └── Toast: "Diagnostics exported"
+    │
+    ├── Review generated bundle path
+    │
+    ├── Click "Open file location" (Finder reveals zip)
+    │
+    └── Click "Share by email"
+        │
+        └── Email draft opens (user attaches zip manually)
 ```
 
 ---

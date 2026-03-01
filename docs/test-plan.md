@@ -237,6 +237,14 @@ Test adapters against real infrastructure (SQLite, file system). Use test databa
 - Generate Excel with commission summary
 - Handle file write errors
 
+**Logging & Diagnostics**
+- Emit structured JSON logs with required fields
+- Redact sensitive keys and values (tokens, API keys, NIF, email, financial fields)
+- Delete old logs outside retention window
+- Export diagnostics bundle with expected files
+- Handle missing log files gracefully (bundle still generated with warnings)
+- Truncate large log files in export and include truncation notes
+
 ---
 
 ## 3. Use Case Tests (Application Layer)
@@ -380,6 +388,14 @@ Test orchestration logic with mocked repositories and services.
 - Show validation error message
 - Require valid API key for validation
 
+**ExportDiagnostics**
+- Generate diagnostics zip under configured diagnostics path
+- Include logs + app-info + config-summary + db-stats + error-report
+- Ensure sensitive fields are redacted in exported logs
+- Build error-report from latest ERROR entries
+- Return warnings when logs are missing/unreadable
+- Expose export action via `/api/config/diagnostics/export`
+
 ---
 
 ## 4. E2E Tests (Full Workflows)
@@ -493,6 +509,18 @@ Test complete user journeys through the API.
 3. Modal: "Configure company NIF first"
 4. User configures NIF
 5. Processing now allowed
+```
+
+### 4.11 Diagnostics Export for Support
+
+```
+1. Trigger an operation that generates logs
+2. Open Settings → Help
+3. Click "Export diagnostics"
+4. Verify success and generated bundle path
+5. Click "Open file location" and confirm bundle exists
+6. Click "Share by email" and verify email draft opens
+7. Attach the generated zip manually and send
 ```
 
 ---

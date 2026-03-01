@@ -321,3 +321,35 @@
 **Acceptance Criteria:**
 - "Export this booking" button in the detail view
 - Export includes: all charges, revenue, costs, margin, commission
+
+---
+
+## EPIC 8 – Support Diagnostics
+
+### HU8.1 – Export Diagnostics Bundle
+**As** a commercial agent  
+**I want** to export a diagnostics bundle in one click  
+**So that** support can investigate issues on my machine
+
+**Acceptance Criteria:**
+- Settings includes **Help → Export diagnostics**
+- Export generates a zip file named `diagnostics-YYYYMMDD-HHMMSS.zip`
+- Bundle is saved under `~/Library/Application Support/AIBookkeeper/diagnostics/`
+- Bundle includes:
+  - Last 5 application log files
+  - `app-info.json`
+  - `config-summary.json` (non-sensitive)
+  - `db-stats.json` (counts only)
+  - `error-report.txt` (latest error entries)
+- If logs are missing or partially unreadable, export still succeeds with warnings
+
+### HU8.2 – Share Diagnostics by Email
+**As** a commercial agent  
+**I want** an easy way to share exported diagnostics by email  
+**So that** I can request support quickly after an error
+
+**Acceptance Criteria:**
+- Settings Help shows the latest diagnostics bundle path after export
+- User can click **Open file location** to reveal the generated zip
+- User can click **Share by email** to open a pre-filled email draft
+- The UI explicitly informs the user that file attachment must be done manually

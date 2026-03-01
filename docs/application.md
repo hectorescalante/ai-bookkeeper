@@ -60,6 +60,7 @@ Use cases orchestrate domain entities to fulfill user stories. Each use case map
 | **ConfigureCompany** | Set company NIF (for invoice classification) and commission rate | HU5.1 |
 | **ConfigureAgent** | Set agent profile (name, email, phone) | HU5.2 |
 | **ConfigurePrompt** | Edit AI extraction prompt template with validation | — |
+| **ExportDiagnostics** | Generate diagnostics bundle (logs + safe metadata) for support sharing | HU8.1, HU8.2 |
 
 ---
 
@@ -96,6 +97,7 @@ Interfaces that define what the application can do. Grouped by domain area.
 - **ConfigureCompany** — Set company NIF and commission rate
 - **ConfigureAgent** — Set agent profile
 - **ConfigurePrompt** — Edit AI extraction prompt template
+- **ExportDiagnostics** — Generate diagnostics ZIP for support
 
 ### Output Ports (Repositories & External Services)
 Interfaces that the domain needs from the outside world.
