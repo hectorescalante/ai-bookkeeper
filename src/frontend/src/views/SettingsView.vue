@@ -258,11 +258,61 @@
           </div>
         </div>
       </div>
+
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Help</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Export a diagnostics bundle to share with support when something fails.
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <Button
+            label="Export diagnostics"
+            icon="pi pi-download"
+            :loading="isExportingDiagnostics"
+            :disabled="isExportingDiagnostics"
+            @click="handleExportDiagnostics"
+          />
+          <Button
+            label="Open file location"
+            icon="pi pi-folder-open"
+            severity="secondary"
+            outlined
+            :disabled="!latestDiagnosticsBundlePath || isExportingDiagnostics"
+            @click="openDiagnosticsLocation"
+          />
+          <Button
+            label="Share by email"
+            icon="pi pi-envelope"
+            severity="secondary"
+            text
+            :disabled="!latestDiagnosticsBundlePath || isExportingDiagnostics"
+            @click="shareDiagnosticsByEmail"
+          />
+        </div>
+
+        <div
+          v-if="latestDiagnosticsBundlePath"
+          class="mt-3 rounded border border-gray-200 bg-gray-50 p-3"
+        >
+          <p class="text-xs text-gray-700">
+            Latest bundle:
+            <span class="font-medium text-gray-800">{{ latestDiagnosticsBundleName }}</span>
+          </p>
+          <p class="text-xs text-gray-600 break-all mt-1">
+            {{ latestDiagnosticsBundlePath }}
+          </p>
+          <p class="text-xs text-gray-500 mt-2">
+            Your email app cannot auto-attach files from here. The “Share by email” button opens
+            a draft; attach this zip file manually before sending.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { onMounted, ref } from "vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
@@ -274,6 +324,7 @@ import {
   configureSettings,
   connectOutlook,
   disconnectOutlook,
+  exportDiagnostics,
   getAgent,
   getCompany,
   getSettings,
@@ -291,11 +342,14 @@ const isClearingApiKey = ref(false);
 const isTestingApiKey = ref(false);
 const isConnecting = ref(false);
 const isDisconnecting = ref(false);
+const isExportingDiagnostics = ref(false);
 
 const companyConfigured = ref(false);
 const agentConfigured = ref(false);
 const hasApiKey = ref(false);
 const outlookConfigured = ref(false);
+const latestDiagnosticsBundleName = ref("");
+const latestDiagnosticsBundlePath = ref("");
 const companyForm = ref({
   name: "",
   nif: "",
@@ -638,6 +692,86 @@ const clearApiKey = async (): Promise<void> => {
     });
   } finally {
     isClearingApiKey.value = false;
+  }
+};
+
+const handleExportDiagnostics = async (): Promise<void> => {
+  isExportingDiagnostics.value = true;
+  try {
+    const result = await exportDiagnostics();
+    latestDiagnosticsBundleName.value = result.bundle_name;
+    latestDiagnosticsBundlePath.value = result.bundle_path;
+
+    toast.add({
+      severity: "success",
+      summary: "Diagnostics exported",
+      detail: `Saved at ${result.bundle_path}`,
+      life: 4500,
+    });
+
+    if (result.warnings.length > 0) {
+      toast.add({
+        severity: "warn",
+        summary: "Diagnostics warnings",
+        detail: result.warnings.join(" "),
+        life: 6000,
+      });
+    }
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to export diagnostics",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
+  } finally {
+    isExportingDiagnostics.value = false;
+  }
+};
+
+const openDiagnosticsLocation = async (): Promise<void> => {
+  if (!latestDiagnosticsBundlePath.value) {
+    return;
+  }
+  try {
+    await revealItemInDir(latestDiagnosticsBundlePath.value);
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to open location",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
+  }
+};
+
+const shareDiagnosticsByEmail = async (): Promise<void> => {
+  if (!latestDiagnosticsBundlePath.value) {
+    return;
+  }
+
+  const subject = encodeURIComponent("AI Bookkeeper diagnostics bundle");
+  const body = encodeURIComponent(
+    [
+      "Hi,",
+      "",
+      "I am sharing diagnostics for support.",
+      "Please attach this file before sending:",
+      latestDiagnosticsBundlePath.value,
+      "",
+      "Thanks.",
+    ].join("\n")
+  );
+
+  try {
+    await openUrl(`mailto:?subject=${subject}&body=${body}`);
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to open email app",
+      detail: extractErrorMessage(error),
+      life: 5000,
+    });
   }
 };
 

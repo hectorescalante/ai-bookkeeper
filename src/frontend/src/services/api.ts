@@ -116,6 +116,12 @@ export interface TestGeminiConnectionResponse {
   valid: boolean;
   message: string;
 }
+export interface DiagnosticsExportResponse {
+  bundle_name: string;
+  bundle_path: string;
+  created_at: string;
+  warnings: string[];
+}
 
 export interface CompanyResponse {
   id: string;
@@ -403,6 +409,9 @@ export const testGeminiConnection = (payload: TestGeminiConnectionRequest = {}) 
     "/config/settings/test-connection",
     payload
   );
+
+export const exportDiagnostics = () =>
+  api.post<DiagnosticsExportResponse>("/config/diagnostics/export");
 
 export const getCompany = () => api.get<CompanyResponse>("/config/company");
 
